@@ -28,13 +28,13 @@ def UI_ShaderLoader():
     cmds.text(' ')
     cmds.text('SHADER LOADER')
     cmds.text(' ')
-    cmds.text('Loads & applies all shaders and')
+    cmds.text('Loads and applies all shaders and')
     cmds.text('shader-geometry references saved by')
     cmds.text('Shader Saver in a Surfacing scene')
     cmds.separator(h = 30)
 
-    cmds.button(label = 'Load & Apply Object\'s Shaders', align = 'center')
-    cmds.button(label = 'Load & Apply All Shaders', align = 'center')
+    cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center')
+    cmds.button(label = 'Load and Apply All Shaders', align = 'center')
     cmds.checkBox('updateToggle', label = 'Update References to Latest Version')
 
     cmds.showWindow('Shader_Loader')
