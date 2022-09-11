@@ -28,7 +28,7 @@ def UI_ShaderLoader():
     cmds.text(' ')
     cmds.text('SHADER LOADER')
     cmds.text(' ')
-    cmds.text('Loads and applies all shaders and')
+    cmds.text('Loads & applies all shaders and')
     cmds.text('shader-geometry references saved by')
     cmds.text('Shader Saver in a Surfacing scene')
     cmds.separator(h = 30)
