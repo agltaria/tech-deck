@@ -22,7 +22,7 @@ import maya.cmds as cmds
 def UI_ShaderLoader():
     if cmds.window('Shader_Loader', exists = True): cmds.deleteUI('Shader_Loader')
 
-    cmds.window('Shader_Loader', widthHeight = (200, 270), sizeable = False, resizeToFitChildren = True)
+    cmds.window('Shader_Loader', widthHeight = (200, 310), sizeable = False, resizeToFitChildren = True)
     cmds.columnLayout(columnAttach = ('both', 5), rowSpacing = 10, columnWidth = 220)
 
     cmds.text(' ')
@@ -33,9 +33,13 @@ def UI_ShaderLoader():
     cmds.text('Shader Saver in a Surfacing scene')
     cmds.separator(h = 30)
 
+    cmds.optionMenu(label = 'Available Versions:')
+    cmds.menuItem(label = 'v001')
+    cmds.menuItem(label = 'v002')
+
     cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center')
+    cmds.separator(h = 30)
     cmds.button(label = 'Load and Apply All Shaders', align = 'center')
-    cmds.checkBox('updateToggle', label = 'Update References to Latest Version')
 
     cmds.showWindow('Shader_Loader')
 
