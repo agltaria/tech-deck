@@ -39,7 +39,7 @@ def UI_ShaderLoader():
 
     cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center')
     cmds.separator(h = 30)
-    cmds.button(label = 'Load and Apply All Shaders', align = 'center')
+    cmds.button(label = 'Update, Load and Apply All Shaders', align = 'center')
 
     cmds.showWindow('Shader_Loader')
 
