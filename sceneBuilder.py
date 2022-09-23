@@ -1,10 +1,25 @@
 import maya.cmds as cmds
 
+windowsPath = ""
+linuxPath = ""
 #def checkDep():
     #Read file name to determine which department to build scene for
 
 #def loadAssets():
-    
+
+
+#read version number
+def readFileVersion(file):
+    fileVer = file[-2:]
+    verNum = int(fileVer)
+    return verNum
+
+#compare current file ver with latest file in folder
+def isLatest(currentVer, file):
+    #get folder of asset
+    if currentVer > readFileVersion(file):
+        return True
+    return False
 
 def updateSingle():
     objects = []
@@ -19,9 +34,8 @@ def updateSingle():
         cmds.text("Please select only one asset.")
         cmds.showWindow('alert')
         raise Exception("Please select only one asset.")
-
-        #update selected asset
-    #else error message
+    else:
+        return
 
 def updateAll():
     return
@@ -41,7 +55,7 @@ def sceneBuilder():
     updateButtons = cmds.rowColumnLayout(parent = info, numberOfRows = 1)
     cmds.button(label = 'Update asset', command = 'updateSingle()')
     cmds.separator(w = 10, st = 'none')
-    cmds.button(label = 'Update all')
+    cmds.button(label = 'Update all', command = 'updateAll()')
     cmds.showWindow('sceneBuilder')
 
 
