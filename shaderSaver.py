@@ -30,7 +30,8 @@ def SetUpPublishedDirectory():
     # # adapted from http://bit.ly/3C6lC61 and http://bit.ly/3e8rfsc
     # return scenePath[:(scenePath.find(setPieceDirectory) + len(setPieceDirectory))] 
 
-    return scenePath.replace(wipDirectoryName, publishDirectoryName)
+    # adapted from http://bit.ly/3CtWiqT and http://bit.ly/3e8rfsc
+    return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) # this will need to be changed if cmds.file() doesn't automatically create missing directories
 
 
 #   Methods
@@ -66,9 +67,8 @@ def SaveShaderOnObject(object):
     shaders = cmds.ls(cmds.listConnections(shadingGroups), materials = True)
 
     destinationDirectory = SetUpPublishedDirectory()
-    print(destinationDirectory)
     # foreach in shaders
-    
+    cmds.file(destinationDirectory + shaders[0], options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True)
 
 
 # ===========================================================================================================
