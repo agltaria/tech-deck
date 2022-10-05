@@ -7,7 +7,14 @@
 import maya.cmds as cmds
 
 #   Properties
+global setPieceDirectoryName
+setPieceDirectorName = "setPiece"
 
+global wipDirectoryName
+wipDirectoryName = "wip"
+
+global publishDirectoryName
+publishDirectoryName = "publish"
 
 
 #   Variables
@@ -15,7 +22,15 @@ import maya.cmds as cmds
 
 
 #   Functions
+def SetUpPublishedDirectory():
+    scenePath = cmds.file(q = True, sceneName = True) # adapted from http://bit.ly/3ygRbJ8
+    # workingDirectory = scenePath.replace()
+    # setPieceDirectory = setPieceDirectorName + "/"
+    
+    # # adapted from http://bit.ly/3C6lC61 and http://bit.ly/3e8rfsc
+    # return scenePath[:(scenePath.find(setPieceDirectory) + len(setPieceDirectory))] 
 
+    return scenePath.replace(wipDirectoryName, publishDirectoryName)
 
 
 #   Methods
@@ -33,10 +48,27 @@ def UI_ShaderSaver():
     cmds.text('by Shader Loader in a Lighting scene')
     cmds.separator(h = 30)
 
-    cmds.button(label = 'Save Object\'s Shaders', align = 'center')
+    cmds.button(label = 'Save Object\'s Shaders', align = 'center', command = 'SaveObjectShaders()')
     cmds.button(label = 'Save All Shaders', align = 'center')
 
     cmds.showWindow('Shader_Saver')
+
+
+def SaveObjectShaders():
+    selectedShape = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True)
+
+    SaveShaderOnObject(selectedShape)
+
+
+def SaveShaderOnObject(object):
+    # adapted from http://bit.ly/3fIe165
+    shadingGroups = cmds.listConnections(object, type = 'shadingEngine')
+    shaders = cmds.ls(cmds.listConnections(shadingGroups), materials = True)
+
+    destinationDirectory = SetUpPublishedDirectory()
+    print(destinationDirectory)
+    # foreach in shaders
+    
 
 
 # ===========================================================================================================
