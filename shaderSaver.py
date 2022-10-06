@@ -20,18 +20,12 @@ publishDirectoryName = "publish"
 #   Variables
 
 
-
 #   Functions
 def SetUpPublishedDirectory():
     scenePath = cmds.file(q = True, sceneName = True) # adapted from http://bit.ly/3ygRbJ8
-    # workingDirectory = scenePath.replace()
-    # setPieceDirectory = setPieceDirectorName + "/"
-    
-    # # adapted from http://bit.ly/3C6lC61 and http://bit.ly/3e8rfsc
-    # return scenePath[:(scenePath.find(setPieceDirectory) + len(setPieceDirectory))] 
 
     # adapted from http://bit.ly/3CtWiqT and http://bit.ly/3e8rfsc
-    return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) # this will need to be changed if cmds.file() doesn't automatically create missing directories
+    return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) #this will need to be changed if cmds.file() doesn't automatically create missing directories
 
 
 #   Methods
@@ -55,20 +49,29 @@ def UI_ShaderSaver():
     cmds.showWindow('Shader_Saver')
 
 
-def SaveObjectShaders():
-    selectedShape = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True)
+def SaveObjectShaders():        
+    transformSelected = False
 
-    SaveShaderOnObject(selectedShape)
+
+    selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True) # adapted from http://bit.ly/3fIe165
+    if (selection == None): return
+    if (len(selection) > 1): transformSelected = True #if there's issues with transformSelected, make this an if-else
+    print(transformSelected)
+
+    for s in selection:
+        SaveShaderOnObject(s)
 
 
 def SaveShaderOnObject(object):
     # adapted from http://bit.ly/3fIe165
     shadingGroups = cmds.listConnections(object, type = 'shadingEngine')
+    if (shadingGroups == None): return
     shaders = cmds.ls(cmds.listConnections(shadingGroups), materials = True)
 
     destinationDirectory = SetUpPublishedDirectory()
-    # foreach in shaders
-    cmds.file(destinationDirectory + shaders[0], options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True)
+    for s in shaders:
+        # this needs version incrementing. Should be no file-overwriting!
+        cmds.file(destinationDirectory + s, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True)
 
 
 # ===========================================================================================================
