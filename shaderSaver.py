@@ -44,7 +44,6 @@ def UI_ShaderSaver():
     cmds.separator(h = 30)
 
     cmds.button(label = 'Save Object\'s Shaders', align = 'center', command = 'SaveObjectShaders()')
-    cmds.button(label = 'Save All Shaders', align = 'center')
 
     cmds.showWindow('Shader_Saver')
 
@@ -53,10 +52,12 @@ def SaveObjectShaders():
     transformSelected = False
 
 
-    selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True) # adapted from http://bit.ly/3fIe165
+    selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True, long = True) # adapted from http://bit.ly/3fIe165
+    print(selection)
+    return 
+    
     if (selection == None): return
     if (len(selection) > 1): transformSelected = True #if there's issues with transformSelected, make this an if-else
-    print(transformSelected)
 
     for s in selection:
         SaveShaderOnObject(s)
@@ -71,7 +72,7 @@ def SaveShaderOnObject(object):
     destinationDirectory = SetUpPublishedDirectory()
     for s in shaders:
         # this needs version incrementing. Should be no file-overwriting!
-        cmds.file(destinationDirectory + s, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True)
+        cmds.file(destinationDirectory + s, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
 
 
 # ===========================================================================================================
