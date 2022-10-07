@@ -25,14 +25,16 @@ def SetUpPublishedDirectory():
     scenePath = cmds.file(q = True, sceneName = True) # adapted from http://bit.ly/3ygRbJ8
 
     # adapted from http://bit.ly/3CtWiqT and http://bit.ly/3e8rfsc
-    return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) #this will need to be changed if cmds.file() doesn't automatically create missing directories
+    return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) + "material/"
+
+    # apparently there's supposed to be a '/source' folder alongside material.....what's it for???
 
 
 #   Methods
 def UI_ShaderSaver():
     if cmds.window('Shader_Saver', exists = True): cmds.deleteUI('Shader_Saver')
 
-    cmds.window('Shader_Saver', widthHeight = (200, 240), sizeable = False, resizeToFitChildren = True)
+    cmds.window('Shader_Saver', widthHeight = (200, 210), sizeable = False, resizeToFitChildren = True)
     cmds.columnLayout(columnAttach = ('both', 5), rowSpacing = 10, columnWidth = 220)
 
     cmds.text(' ')
@@ -48,16 +50,12 @@ def UI_ShaderSaver():
     cmds.showWindow('Shader_Saver')
 
 
-def SaveObjectShaders():        
-    transformSelected = False
-
-
+def SaveObjectShaders():       
     selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True, long = True) # adapted from http://bit.ly/3fIe165
-    print(selection)
-    return 
     
     if (selection == None): return
-    if (len(selection) > 1): transformSelected = True #if there's issues with transformSelected, make this an if-else
+    if (len(selection) <= 1): 
+        print("No group selected! Returning...")
 
     for s in selection:
         SaveShaderOnObject(s)
@@ -67,11 +65,16 @@ def SaveShaderOnObject(object):
     # adapted from http://bit.ly/3fIe165
     shadingGroups = cmds.listConnections(object, type = 'shadingEngine')
     if (shadingGroups == None): return
+
+    temp = cmds.listConnections(shadingGroups)
+    print(temp)
     shaders = cmds.ls(cmds.listConnections(shadingGroups), materials = True)
+    print(shaders)
 
     destinationDirectory = SetUpPublishedDirectory()
     for s in shaders:
         # this needs version incrementing. Should be no file-overwriting!
+        cmds.select(s)
         cmds.file(destinationDirectory + s, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
 
 
