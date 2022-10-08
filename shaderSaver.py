@@ -18,16 +18,25 @@ publishDirectoryName = "publish"
 
 
 #   Variables
+global currentVersion
+currentVersion = 1
 
 
 #   Functions
-def SetUpPublishedDirectory():
+def GetPublishDirectory():
     scenePath = cmds.file(q = True, sceneName = True) # adapted from http://bit.ly/3ygRbJ8
 
     # adapted from http://bit.ly/3CtWiqT and http://bit.ly/3e8rfsc
     return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) + "material/"
 
     # apparently there's supposed to be a '/source' folder alongside material.....what's it for???
+
+
+def GetVersionString():
+    global currentVersion
+    if currentVersion < 10: return ".v00" + str(currentVersion)
+    if currentVersion < 100: return ".v0" + str(currentVersion)
+    return ".v" + str(currentVersion)
 
 
 #   Methods
@@ -60,22 +69,26 @@ def SaveObjectShaders():
     for s in selection:
         SaveShaderOnObject(s)
 
+    global currentVersion
+    currentVersion += 1
+
+    cmds.select(selection)
+
 
 def SaveShaderOnObject(object):
     # adapted from http://bit.ly/3fIe165
     shadingGroups = cmds.listConnections(object, type = 'shadingEngine')
     if (shadingGroups == None): return
 
-    temp = cmds.listConnections(shadingGroups)
-    print(temp)
     shaders = cmds.ls(cmds.listConnections(shadingGroups), materials = True)
-    print(shaders)
+    version = GetVersionString()
 
-    destinationDirectory = SetUpPublishedDirectory()
+    destinationDirectory = GetPublishDirectory()
     for s in shaders:
         # this needs version incrementing. Should be no file-overwriting!
         cmds.select(s)
-        cmds.file(destinationDirectory + s, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
+        cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
+
 
 
 # ===========================================================================================================
