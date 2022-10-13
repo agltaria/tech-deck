@@ -5,6 +5,8 @@
 # ============================================================================================================
 
 import maya.cmds as cmds
+import json
+import os
 
 #   Properties
 global setPieceDirectoryName
@@ -19,7 +21,6 @@ publishDirectoryName = "publish"
 
 #   Variables
 global currentVersion
-currentVersion = 1
 
 
 #   Functions
@@ -39,7 +40,16 @@ def GetVersionString():
     return ".v" + str(currentVersion)
 
 
+def GetSceneName():
+    return os.path.splitext(cmds.file(q = True, sceneName = True, shortName = True))[0] # adapted from http://bit.ly/3ygRbJ8
+
+
 #   Methods
+def PreloadVersion():
+    global currentVersion
+    currentVersion = 1
+
+
 def UI_ShaderSaver():
     if cmds.window('Shader_Saver', exists = True): cmds.deleteUI('Shader_Saver')
 
@@ -66,8 +76,28 @@ def SaveObjectShaders():
     if (len(selection) <= 1): 
         print("No group selected! Returning...")
 
+    list = []
+    id = 1001
     for s in selection:
-        SaveShaderOnObject(s)
+        shader = SaveShaderOnObject(s)
+
+        dictionary = {
+            "ID": id,
+            "shape": s,
+            "shader": shader
+        }
+        list.append(dictionary)
+
+        id += 1
+
+    jsonOutput = {
+        "geometry_shader_pairs": list,
+        "created_with": GetSceneName()
+    }
+
+    # adapted from http://bit.ly/3EDPvgX
+    with open(GetPublishDirectory() + GetSceneName() + GetVersionString() + ".json", "w", encoding = "utf-8") as writtenFile:
+        writtenFile.write(json.dumps(jsonOutput, ensure_ascii = False, indent = 4))
 
     global currentVersion
     currentVersion += 1
@@ -87,11 +117,12 @@ def SaveShaderOnObject(object):
     for s in shaders:
         # this needs version incrementing. Should be no file-overwriting!
         cmds.select(s)
-        cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
+        return cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
 
 
 
 # ===========================================================================================================
 #   Main thread
 
+PreloadVersion()
 UI_ShaderSaver()
