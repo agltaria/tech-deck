@@ -77,7 +77,7 @@ def SaveObjectShaders():
     selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True, long = True) # adapted from http://bit.ly/3fIe165
     
     if (selection == None): return
-    if (len(selection) <= 1): 
+    if (len(selection) < 1): 
         print("Shader Saver | No group selected! Returning...")
         return
 
@@ -89,7 +89,7 @@ def SaveObjectShaders():
         singlePair = {
             "ID": id,
             "shape": s,
-            "shader": shader
+            "shader": shader[shader.rfind("/" + publishDirectoryName) : len(shader)]
         }
         shaderPairlist.append(singlePair)
 
@@ -114,7 +114,11 @@ def SaveObjectShaders():
 
     scenePath = cmds.file(q = True, sceneName = True)
 
-    print(GetPublishDirectory("source/") + GetSceneName() + ".mb")
+    savedSourceDirectory = GetPublishDirectory("source/")
+    if(os.path.isdir(savedSourceDirectory) == False): 
+        os.mkdir(savedSourceDirectory)
+        print("Shader Saver | Created directory: " + savedSourceDirectory)
+
     sourceOutputPath = GetPublishDirectory("/source/") + GetSceneName() + ".mb"
     cmds.file(rename = sourceOutputPath)
     cmds.file(save = True, type = "mayaBinary")
@@ -134,7 +138,7 @@ def SaveShaderOnObject(object):
     shaders = cmds.ls(cmds.listConnections(shadingGroups), materials = True)
     version = ToVersionString(currentVersion)
 
-    destinationDirectory = GetPublishDirectory("/material/")
+    destinationDirectory = GetPublishDirectory("material/")
     for s in shaders:
         # this needs version incrementing. Should be no file-overwriting!
         cmds.select(s)
