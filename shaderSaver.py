@@ -24,20 +24,19 @@ global currentVersion
 
 
 #   Functions
-def GetPublishDirectory():
+def GetPublishDirectory(destination):
     scenePath = cmds.file(q = True, sceneName = True) # adapted from http://bit.ly/3ygRbJ8
 
     # adapted from http://bit.ly/3CtWiqT and http://bit.ly/3e8rfsc
-    return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) + "material/"
+    return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) + destination
 
-    # apparently there's supposed to be a '/source' folder alongside material.....what's it for???
+    # apparently there's supposed to be a '/source' folder alongside material.....that's for publishing the wip surfacing scene
 
 
-def GetVersionString():
-    global currentVersion
-    if currentVersion < 10: return ".v00" + str(currentVersion)
-    if currentVersion < 100: return ".v0" + str(currentVersion)
-    return ".v" + str(currentVersion)
+def ToVersionString(version):
+    if version < 10: return ".v00" + str(version)
+    if version < 100: return ".v0" + str(version)
+    return ".v" + str(version)
 
 
 def GetSceneName():
@@ -46,8 +45,13 @@ def GetSceneName():
 
 #   Methods
 def PreloadVersion():
+    sceneName = GetSceneName()
+    versionString = sceneName[sceneName.rfind('.v') + 2 : len(sceneName)] # adapted from http://bit.ly/3EFPd97
+
     global currentVersion
-    currentVersion = 1
+    currentVersion = int(versionString)
+
+    print("Shader Saver | Current Version is " + ToVersionString(currentVersion))
 
 
 def UI_ShaderSaver():
@@ -74,33 +78,50 @@ def SaveObjectShaders():
     
     if (selection == None): return
     if (len(selection) <= 1): 
-        print("No group selected! Returning...")
+        print("Shader Saver | No group selected! Returning...")
+        return
 
-    list = []
+    shaderPairlist = []
     id = 1001
     for s in selection:
         shader = SaveShaderOnObject(s)
 
-        dictionary = {
+        singlePair = {
             "ID": id,
             "shape": s,
             "shader": shader
         }
-        list.append(dictionary)
+        shaderPairlist.append(singlePair)
 
         id += 1
 
+    # need to include source model version to enable dependency checks in Loader
     jsonOutput = {
-        "geometry_shader_pairs": list,
+        "geometry_shader_pairs": shaderPairlist,
         "created_with": GetSceneName()
     }
 
     # adapted from http://bit.ly/3EDPvgX
-    with open(GetPublishDirectory() + GetSceneName() + GetVersionString() + ".json", "w", encoding = "utf-8") as writtenFile:
+    global currentVersion
+    jsonFilepath = GetPublishDirectory("/material/") + GetSceneName() + ".json"
+    with open(jsonFilepath, "w", encoding = "utf-8") as writtenFile:
         writtenFile.write(json.dumps(jsonOutput, ensure_ascii = False, indent = 4))
 
-    global currentVersion
+    print("Shader Saver | JSON saved: " + jsonFilepath)
+
     currentVersion += 1
+    print("Shader Saver | Incremented Current Version to " + ToVersionString(currentVersion))
+
+    scenePath = cmds.file(q = True, sceneName = True)
+
+    print(GetPublishDirectory("source/") + GetSceneName() + ".mb")
+    sourceOutputPath = GetPublishDirectory("/source/") + GetSceneName() + ".mb"
+    cmds.file(rename = sourceOutputPath)
+    cmds.file(save = True, type = "mayaBinary")
+    print("Shader Saver | Source Scene saved: " + cmds.file(q = True, sceneName = True))
+    
+    cmds.file(rename = scenePath[:scenePath.rfind(".v")] + ToVersionString(currentVersion) + ".mb")
+    print("Shader Saver | Open Scene version incremented: " + GetSceneName())
 
     cmds.select(selection)
 
@@ -111,13 +132,16 @@ def SaveShaderOnObject(object):
     if (shadingGroups == None): return
 
     shaders = cmds.ls(cmds.listConnections(shadingGroups), materials = True)
-    version = GetVersionString()
+    version = ToVersionString(currentVersion)
 
-    destinationDirectory = GetPublishDirectory()
+    destinationDirectory = GetPublishDirectory("/material/")
     for s in shaders:
         # this needs version incrementing. Should be no file-overwriting!
         cmds.select(s)
-        return cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
+        output = cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
+        print("Shader Saver | Material saved: " + output)
+
+        return output
 
 
 
