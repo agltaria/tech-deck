@@ -96,9 +96,14 @@ def SaveObjectShaders():
         id += 1
 
     # need to include source model version to enable dependency checks in Loader
+    # C:/Users/ethan/Documents/maya/projects/Assessment2_GroupX/scenes/publish/assets/setPiece/bookshelf01/model/source/bookshelf01_model.v001.mb
+    referencedModelPath = cmds.referenceQuery(selection, filename = True)
+    compatibleModel = referencedModelPath[referencedModelPath.rfind("/" + publishDirectoryName) : len(referencedModelPath)]
+
     jsonOutput = {
         "geometry_shader_pairs": shaderPairlist,
-        "created_with": GetSceneName()
+        "created_with": GetSceneName(),
+        "compatible_model" : compatibleModel
     }
 
     # adapted from http://bit.ly/3EDPvgX
