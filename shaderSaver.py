@@ -4,6 +4,7 @@
 # Shader Loader will load them in another scene
 # ============================================================================================================
 
+from select import select
 import maya.cmds as cmds
 import json
 import os
@@ -17,6 +18,9 @@ wipDirectoryName = "wip"
 
 global publishDirectoryName
 publishDirectoryName = "publish"
+
+global targetObjectSubstring
+targetObjectSubstring = "mRef_"
 
 
 #   Variables
@@ -41,6 +45,11 @@ def ToVersionString(version):
 
 def GetSceneName():
     return os.path.splitext(cmds.file(q = True, sceneName = True, shortName = True))[0] # adapted from http://bit.ly/3ygRbJ8
+
+
+def FindSecondOccurrenceOfSubstring(string, substring):
+    return string.find(substring, string.find(substring) + 1) # adapted from http://bit.ly/3yK93fP
+
 
 
 #   Methods
@@ -74,17 +83,27 @@ def UI_ShaderSaver():
 
 
 def SaveObjectShaders():       
-    selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True, long = True) # adapted from http://bit.ly/3fIe165
+    allShapes = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, long = True)
     
-    if selection == None: return
-    if len(selection) < 1: 
-        print("Shader Saver | No group selected! Returning...")
+    targetParent = None
+    for s in allShapes:
+        if s.__contains__(targetObjectSubstring):
+            targetParent = s[1 : FindSecondOccurrenceOfSubstring(s, "|mRef")]
+            break
+    
+    print(targetParent)
+    selection = cmds.listRelatives(targetParent, children = True)
+    print(selection)
+    cmds.select(selection)
+
+    if len(selection) < 1 or selection == None: 
+        print("Shader Saver | No valid object found! Returning...")
         return
 
     shaderPairlist = []
     id = 1001
     for s in selection:
-        shader = SaveShaderOnObject(s)
+        shader = SaveShaderOnObject(cmds.listRelatives(s, children = True))
 
         singlePair = {
             "ID": id,
@@ -137,7 +156,9 @@ def SaveObjectShaders():
 def SaveShaderOnObject(object):
     # adapted from http://bit.ly/3fIe165
     shadingGroups = cmds.listConnections(object, type = 'shadingEngine')
-    if (shadingGroups == None): return
+    if (shadingGroups == None): 
+        print("Shader Saver | No shading grounds found for object " + object)
+        return
 
     shaders = cmds.ls(cmds.listConnections(shadingGroups), materials = True)
     version = ToVersionString(currentVersion)
