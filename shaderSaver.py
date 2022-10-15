@@ -4,7 +4,6 @@
 # Shader Loader will load them in another scene
 # ============================================================================================================
 
-from select import select
 import maya.cmds as cmds
 import json
 import os

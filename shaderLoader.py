@@ -5,9 +5,18 @@
 # ============================================================================================================
 
 import maya.cmds as cmds
+import json
+import os
 
 #   Properties
+global targetObjectSubstring
+targetObjectSubstring = "mRef_"
 
+global scenesDirectoryName
+scenesDirectoryName = "/scenes"
+
+global jsonTemplatePath
+jsonTemplatePath = "/publish/assets/setPiece/<assetName>/surfacing/material/"
 
 
 #   Variables
@@ -15,6 +24,22 @@ import maya.cmds as cmds
 
 
 #   Functions
+def ToVersionString(version):
+    if version < 10: return ".v00" + str(version)
+    if version < 100: return ".v0" + str(version)
+    return ".v" + str(version)
+
+
+def GetValidVersionsForObject(object):
+    if object == None: return [] # GUARD in case nothing is selected
+    
+    output = []
+    scenePath = cmds.file(q = True, sceneName = True)
+    searchDirectory = scenePath[:scenePath.rfind(scenesDirectoryName) + len(scenesDirectoryName)] + jsonTemplatePath.replace("<assetName>", object[0].replace("mRef_", ""))
+    
+    
+
+    return output
 
 
 
@@ -33,9 +58,10 @@ def UI_ShaderLoader():
     cmds.text('Shader Saver in a Surfacing scene')
     cmds.separator(h = 30)
 
+    availableVersions = GetValidVersionsForObject(cmds.ls(selection = True))
     cmds.optionMenu(label = 'Available Versions:')
-    cmds.menuItem(label = 'v001')
-    cmds.menuItem(label = 'v002')
+    for v in availableVersions:
+        cmds.menuItem(label = ToVersionString(v[1:len(v)]))
 
     cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center')
     cmds.separator(h = 30)
