@@ -76,8 +76,8 @@ def UI_ShaderSaver():
 def SaveObjectShaders():       
     selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, selection = True, long = True) # adapted from http://bit.ly/3fIe165
     
-    if (selection == None): return
-    if (len(selection) < 1): 
+    if selection == None: return
+    if len(selection) < 1: 
         print("Shader Saver | No group selected! Returning...")
         return
 
@@ -96,8 +96,7 @@ def SaveObjectShaders():
         id += 1
 
     # need to include source model version to enable dependency checks in Loader
-    # C:/Users/ethan/Documents/maya/projects/Assessment2_GroupX/scenes/publish/assets/setPiece/bookshelf01/model/source/bookshelf01_model.v001.mb
-    referencedModelPath = cmds.referenceQuery(selection, filename = True)
+    referencedModelPath = cmds.referenceQuery(selection[0], filename = True)
     compatibleModel = referencedModelPath[referencedModelPath.rfind("/" + publishDirectoryName) : len(referencedModelPath)]
 
     jsonOutput = {
@@ -120,7 +119,7 @@ def SaveObjectShaders():
     scenePath = cmds.file(q = True, sceneName = True)
 
     savedSourceDirectory = GetPublishDirectory("source/")
-    if(os.path.isdir(savedSourceDirectory) == False): 
+    if os.path.isdir(savedSourceDirectory) == False: 
         os.mkdir(savedSourceDirectory)
         print("Shader Saver | Created directory: " + savedSourceDirectory)
 
@@ -147,10 +146,13 @@ def SaveShaderOnObject(object):
     for s in shaders:
         # this needs version incrementing. Should be no file-overwriting!
         cmds.select(s)
-        output = cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
-        print("Shader Saver | Material saved: " + output)
+        filename = destinationDirectory + s + version + ".mb"
+        if (os.path.exists(filename) == False):
+            output = cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
+            print("Shader Saver | Material saved: " + output)
+            return output
 
-        return output
+        return filename
 
 
 
