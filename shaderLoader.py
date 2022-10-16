@@ -49,14 +49,23 @@ def GetValidVersionsForObject(object):
 
     output = []
     assetName = object[0].replace("mRef_", "")
-    searchDirectory = GetAssetMaterialDirectory(assetName)
     
     version = 1
     while os.path.exists(GetAssetJSONFilename(assetName, version)):
-        output.append(version)
+        output.append(version) #TODO: add a check that the compatible model matches
         version += 1
 
     return output
+
+
+def GetShaderFromObject(childObject, jsonData):
+    shapeName = childObject[FindSecondOccurrenceOfSubstring(childObject, "|") + 1 : childObject.rfind("|")]
+    
+    for p in jsonData["geometry_shader_pairs"]:
+        if p["shape"] == shapeName:
+            return p["shader"]
+
+    return ""
 
 
 
@@ -100,12 +109,29 @@ def ApplyShadersToSelection():
 
 def ApplyShadersToObject(object, versionString):
     assetName = object[0][1 : FindSecondOccurrenceOfSubstring(object[0], "|")].replace("mRef_", "")
+    shaderDirectory = GetAssetMaterialDirectory(assetName)
 
     version = int(versionString[2:len(versionString)])
     jsonFile = open(GetAssetJSONFilename(assetName, version))
     jsonData = json.load(jsonFile)
 
-    print(jsonData)
+    for childObject in object:
+        shader = GetShaderFromObject(childObject, jsonData)        
+        shaderPath = shaderDirectory + shader[shader.rfind("/") + 1 : len(shader)]
+        importedShader = cmds.file(shaderPath, 
+                                   i = True, 
+                                   type = "mayaBinary", 
+                                   ignoreVersion = True, 
+                                   renameAll = True, 
+                                   mergeNamespacesOnClash = True,
+                                   namespace = "",
+                                   options = "v=0;p=17;f=0",
+                                   preserveReferences = True,
+                                   importTimeRange = "combine"
+                         )
+        
+        # rename imported shader (incorrect versioning stuff goin' on)
+
 
 
 # ===========================================================================================================
