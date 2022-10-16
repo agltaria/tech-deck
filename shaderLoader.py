@@ -20,7 +20,8 @@ jsonTemplatePath = "/publish/assets/setPiece/<assetName>/surfacing/material/"
 
 
 #   Variables
-
+global versionSelector
+global selection
 
 
 #   Functions
@@ -35,15 +36,24 @@ def GetValidVersionsForObject(object):
     
     output = []
     scenePath = cmds.file(q = True, sceneName = True)
-    searchDirectory = scenePath[:scenePath.rfind(scenesDirectoryName) + len(scenesDirectoryName)] + jsonTemplatePath.replace("<assetName>", object[0].replace("mRef_", ""))
+    assetName = object[0].replace("mRef_", "")
+    searchDirectory = scenePath[:scenePath.rfind(scenesDirectoryName) + len(scenesDirectoryName)] + jsonTemplatePath.replace("<assetName>", assetName)
     
-    
+    version = 1
+    while os.path.exists(searchDirectory + assetName + "_surface" + ToVersionString(int(version)) + ".json"):
+        output.append(version)
+        version += 1
 
     return output
 
 
 
 #   Methods
+def StoreSelection():
+    global selection
+    selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, long = True, selection = True)
+
+
 def UI_ShaderLoader():
     if cmds.window('Shader_Loader', exists = True): cmds.deleteUI('Shader_Loader')
 
@@ -59,18 +69,30 @@ def UI_ShaderLoader():
     cmds.separator(h = 30)
 
     availableVersions = GetValidVersionsForObject(cmds.ls(selection = True))
-    cmds.optionMenu(label = 'Available Versions:')
+    global versionSelector
+    versionSelector = cmds.optionMenu(label = 'Available Versions:')
     for v in availableVersions:
-        cmds.menuItem(label = ToVersionString(v[1:len(v)]))
+        versionString = ToVersionString(v)
+        cmds.menuItem(label = versionString)
 
-    cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center')
+    cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center', enable = (len(availableVersions) > 0), command = "ApplyShadersToSelection()")
     cmds.separator(h = 30)
     cmds.button(label = 'Update, Load and Apply All Shaders', align = 'center')
 
     cmds.showWindow('Shader_Loader')
 
 
+def ApplyShadersToSelection():
+    ApplyShadersToObject(selection, cmds.optionMenu(versionSelector, q = True, value = True))
+
+
+def ApplyShadersToObject(object, versionString):
+    print(object)
+    print(versionString)
+
+
 # ===========================================================================================================
 #   Main thread
 
+StoreSelection()
 UI_ShaderLoader()

@@ -155,7 +155,7 @@ def SaveObjectShaders():
 def SaveShaderOnObject(object):
     # adapted from http://bit.ly/3fIe165
     shadingGroups = cmds.listConnections(object, type = 'shadingEngine')
-    if (shadingGroups == None): 
+    if shadingGroups == None: 
         print("Shader Saver | No shading grounds found for object " + object)
         return
 
@@ -167,7 +167,7 @@ def SaveShaderOnObject(object):
         # this needs version incrementing. Should be no file-overwriting!
         cmds.select(s)
         filename = destinationDirectory + s + version + ".mb"
-        if (os.path.exists(filename) == False):
+        if os.path.exists(filename) == False:
             output = cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
             print("Shader Saver | Material saved: " + output)
             return output
