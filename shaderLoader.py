@@ -31,16 +31,28 @@ def ToVersionString(version):
     return ".v" + str(version)
 
 
+def GetAssetMaterialDirectory(assetName):
+    scenePath = cmds.file(q = True, sceneName = True)
+    return scenePath[:scenePath.rfind(scenesDirectoryName) + len(scenesDirectoryName)] + jsonTemplatePath.replace("<assetName>", assetName)
+
+
+def GetAssetJSONFilename(assetName, version):
+    return GetAssetMaterialDirectory(assetName) + assetName + "_surface" + ToVersionString(version) + ".json"
+
+
+def FindSecondOccurrenceOfSubstring(string, substring):
+    return string.find(substring, string.find(substring) + 1) # adapted from http://bit.ly/3yK93fP
+
+
 def GetValidVersionsForObject(object):
     if object == None: return [] # GUARD in case nothing is selected
-    
+
     output = []
-    scenePath = cmds.file(q = True, sceneName = True)
     assetName = object[0].replace("mRef_", "")
-    searchDirectory = scenePath[:scenePath.rfind(scenesDirectoryName) + len(scenesDirectoryName)] + jsonTemplatePath.replace("<assetName>", assetName)
+    searchDirectory = GetAssetMaterialDirectory(assetName)
     
     version = 1
-    while os.path.exists(searchDirectory + assetName + "_surface" + ToVersionString(int(version)) + ".json"):
+    while os.path.exists(GetAssetJSONFilename(assetName, version)):
         output.append(version)
         version += 1
 
@@ -87,8 +99,13 @@ def ApplyShadersToSelection():
 
 
 def ApplyShadersToObject(object, versionString):
-    print(object)
-    print(versionString)
+    assetName = object[0][1 : FindSecondOccurrenceOfSubstring(object[0], "|")].replace("mRef_", "")
+
+    version = int(versionString[2:len(versionString)])
+    jsonFile = open(GetAssetJSONFilename(assetName, version))
+    jsonData = json.load(jsonFile)
+
+    print(jsonData)
 
 
 # ===========================================================================================================
