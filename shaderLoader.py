@@ -45,7 +45,7 @@ def FindSecondOccurrenceOfSubstring(string, substring):
 
 
 def GetValidVersionsForObject(object):
-    if object == None: return [] # GUARD in case nothing is selected
+    if object == None or len(object) <= 0: return [] # GUARD in case nothing is selected
 
     output = []
     assetName = object[0].replace("mRef_", "")
