@@ -105,6 +105,7 @@ def UI_ShaderLoader():
 
 def ApplyShadersToSelection():
     ApplyShadersToObject(selection, cmds.optionMenu(versionSelector, q = True, value = True))
+    # cmds.select(selection)
 
 
 def ApplyShadersToObject(object, versionString):
@@ -116,21 +117,22 @@ def ApplyShadersToObject(object, versionString):
     jsonData = json.load(jsonFile)
 
     for childObject in object:
-        shader = GetShaderFromObject(childObject, jsonData)        
-        shaderPath = shaderDirectory + shader[shader.rfind("/") + 1 : len(shader)]
+        jsonShader = GetShaderFromObject(childObject, jsonData)        
+        shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
         importedShader = cmds.file(shaderPath, 
                                    i = True, 
                                    type = "mayaBinary", 
                                    ignoreVersion = True, 
                                    renameAll = True, 
                                    mergeNamespacesOnClash = True,
-                                   namespace = "",
+                                   namespace = assetName,
                                    options = "v=0;p=17;f=0",
                                    preserveReferences = True,
                                    importTimeRange = "combine"
                          )
+        cmds.select(assetName + ":" + jsonShader[jsonShader.rfind("/") + 1 : jsonShader.rfind(".v")])
+        cmds.
         
-        # rename imported shader (incorrect versioning stuff goin' on)
 
 
 
