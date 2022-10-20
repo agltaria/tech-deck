@@ -130,8 +130,10 @@ def ApplyShadersToObject(object, versionString):
                                    preserveReferences = True,
                                    importTimeRange = "combine"
                          )
-        cmds.select(assetName + ":" + jsonShader[jsonShader.rfind("/") + 1 : jsonShader.rfind(".v")])
-        cmds.
+        shader = assetName + ":" + jsonShader[jsonShader.rfind("/") + 1 : jsonShader.rfind(".v")]
+        # cmds.select(shader)
+        cmds.select(childObject)
+        cmds.hyperShade(assign = shader)
         
 
 
