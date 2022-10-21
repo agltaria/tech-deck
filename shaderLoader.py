@@ -80,6 +80,7 @@ def GetValidVersionsForObject(object):
 
 def GetShaderFromObject(childObject, jsonData):
     shapeName = childObject[FindNthOccurrenceOfSubstring(childObject, "|", shapeDepthFromRoot) + 1 : childObject.rfind("|")]
+    print(shapeName)
     
     for p in jsonData["geometry_shader_pairs"]:
         if p["shape"] == shapeName:
@@ -138,11 +139,9 @@ def ApplyShadersToObject(object, versionString):
     jsonData = json.load(jsonFile)
 
     for childObject in object:
-        print(childObject)
         jsonShader = GetShaderFromObject(childObject, jsonData)     
-        print(jsonShader)   
+        print("jsonShader: " + jsonShader + "</>")   
         shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
-        print(shaderPath)
         importedShader = cmds.file(shaderPath, 
                                    i = True, 
                                    type = "mayaBinary", 

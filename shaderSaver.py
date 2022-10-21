@@ -90,7 +90,8 @@ def SaveObjectShaders():
             targetParent = s[1 : FindSecondOccurrenceOfSubstring(s, "|mRef")]
             break
     
-    selection = cmds.listRelatives(targetParent, children = True)
+    targetParent = "|" + targetParent + "|" # Maya craps itself if there's multiple objects with the same name :(
+    selection = cmds.listRelatives(targetParent, children = True, fullPath = True)
     cmds.select(selection)
 
     if len(selection) < 1 or selection == None: 
@@ -101,10 +102,11 @@ def SaveObjectShaders():
     id = 1001
     for s in selection:
         shader = SaveShaderOnObject(cmds.listRelatives(s, children = True))
+        shape = s[FindSecondOccurrenceOfSubstring(s, "|") + 1 : len(s)]
 
         singlePair = {
             "ID": id,
-            "shape": s,
+            "shape": shape,
             "shader": shader[shader.rfind("/" + publishDirectoryName) : len(shader)]
         }
         shaderPairlist.append(singlePair)
