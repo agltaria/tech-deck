@@ -24,6 +24,9 @@ versionSearchLimit = 100
 global shapeDepthFromRoot # Outliner 'depth' of the shapes
 shapeDepthFromRoot = 3
 
+global setGeoName # name of the 'setGeo' parent folder
+setGeoName = "setGeo"
+
 
 #   Variables
 global versionSelector
@@ -62,10 +65,13 @@ def GetValidVersionsForObject(object):
 
     output = []
     assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
+    # print("object: " + str(object))
+    # print("assetName: " + assetName)
     
     version = 1
     while os.path.exists(GetAssetJSONFilename(assetName, version)) or version <= versionSearchLimit:       
         if os.path.exists(GetAssetJSONFilename(assetName, version)):
+            print(object) # ['loungeRoom_model_v002:mRef_couch01'] ['loungeRoom_model_v002:mRef_vase01']
             referencedModelPath = cmds.referenceQuery(object, filename = True)
             referencedModelRelative = referencedModelPath[referencedModelPath.find("/publish") : len(referencedModelPath)]
             jsonFile = open(GetAssetJSONFilename(assetName, version))
@@ -82,7 +88,6 @@ def GetValidVersionsForObject(object):
 
 def GetShaderFromObject(childObject, jsonData):
     shapeName = childObject[childObject.rfind(":mRef_") + 1 : len(childObject)].replace("Shape", "")
-    print(shapeName)
     
     for p in jsonData["geometry_shader_pairs"]:
         if p["shape"] == shapeName:
@@ -121,7 +126,7 @@ def UI_ShaderLoader():
 
     cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center', enable = (len(availableVersions) > 0), command = "ApplyShadersToSelection()")
     cmds.separator(h = 30)
-    cmds.button(label = 'Update, Load and Apply All Shaders', align = 'center', command = 'ApplyAllShaders')
+    cmds.button(label = 'Update, Load and Apply All Shaders', align = 'center', command = 'ApplyAllShaders()')
 
     cmds.showWindow('Shader_Loader')
 
@@ -132,7 +137,15 @@ def ApplyShadersToSelection():
 
 
 def ApplyAllShaders():
-    print("Spoiler alert")
+    setObjects = cmds.listRelatives(setGeoName, children = True)
+    
+    for o in setObjects:
+        validVersions = GetValidVersionsForObject([o])
+        print([o])
+
+        print(validVersions)
+        if len(validVersions) > 0:
+            ApplyShadersToObject([o], validVersions[len(validVersions) - 1])
 
 
 def ApplyShadersToObject(object, versionString):
@@ -150,17 +163,20 @@ def ApplyShadersToObject(object, versionString):
 
         if (importedShaders.__contains__(jsonShader) == False):
             shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
-            importedShader = cmds.file(shaderPath, 
-                                        i = True, 
-                                        type = "mayaBinary", 
-                                        ignoreVersion = True, 
-                                        renameAll = True, 
-                                        mergeNamespacesOnClash = True,
-                                        namespace = assetName,
-                                        options = "v=0;p=17;f=0",
-                                        preserveReferences = True,
-                                        importTimeRange = "combine"
-                                )
+
+            importedShader = cmds.file(
+                shaderPath, 
+                i = True, 
+                type = "mayaBinary", 
+                ignoreVersion = True, 
+                renameAll = True, 
+                mergeNamespacesOnClash = True,
+                namespace = assetName,
+                options = "v=0;p=17;f=0",
+                preserveReferences = True,
+                importTimeRange = "combine"
+            )
+
             importedShaders.append(jsonShader)
 
         shader = assetName + ":" + jsonShader[jsonShader.rfind("/") + 1 : jsonShader.rfind(".v")]
