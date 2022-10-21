@@ -65,13 +65,10 @@ def GetValidVersionsForObject(object):
 
     output = []
     assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
-    # print("object: " + str(object))
-    # print("assetName: " + assetName)
     
     version = 1
     while os.path.exists(GetAssetJSONFilename(assetName, version)) or version <= versionSearchLimit:       
         if os.path.exists(GetAssetJSONFilename(assetName, version)):
-            print(object) # ['loungeRoom_model_v002:mRef_couch01'] ['loungeRoom_model_v002:mRef_vase01']
             referencedModelPath = cmds.referenceQuery(object, filename = True)
             referencedModelRelative = referencedModelPath[referencedModelPath.find("/publish") : len(referencedModelPath)]
             jsonFile = open(GetAssetJSONFilename(assetName, version))
@@ -137,7 +134,7 @@ def ApplyShadersToSelection():
 
 
 def ApplyAllShaders():
-    setObjects = cmds.listRelatives(setGeoName, children = True)
+    setObjects = cmds.listRelatives(setGeoName, children = True, fullPath = True)
     
     for o in setObjects:
         validVersions = GetValidVersionsForObject([o])
@@ -145,15 +142,18 @@ def ApplyAllShaders():
 
         print(validVersions)
         if len(validVersions) > 0:
-            ApplyShadersToObject([o], validVersions[len(validVersions) - 1])
+            ApplyShadersToObject([o], ToVersionString(validVersions[len(validVersions) - 1]))
 
 
 def ApplyShadersToObject(object, versionString):
     assetPrefix = ":" + targetObjectSubstring
-    assetName = object[0][object[0].find(assetPrefix) + len(assetPrefix) : FindNthOccurrenceOfSubstring(object[0], "|", shapeDepthFromRoot)]
+    assetName = object[0][object[0].find(assetPrefix) + len(assetPrefix) : FindNthOccurrenceOfSubstring(object[0], "|", shapeDepthFromRoot)] 
+    # this piece of shit's the culprit ^
+    
     shaderDirectory = GetAssetMaterialDirectory(assetName)
 
     version = int(versionString[2:len(versionString)])
+    print(assetName)
     jsonFile = open(GetAssetJSONFilename(assetName, version))
     jsonData = json.load(jsonFile)
 
