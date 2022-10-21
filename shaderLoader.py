@@ -79,7 +79,7 @@ def GetValidVersionsForObject(object):
 
 
 def GetShaderFromObject(childObject, jsonData):
-    shapeName = childObject[FindNthOccurrenceOfSubstring(childObject, "|", shapeDepthFromRoot) + 1 : childObject.rfind("|")]
+    shapeName = childObject[childObject.rfind(":mRef_") + 1 : len(childObject)].replace("Shape", "")
     print(shapeName)
     
     for p in jsonData["geometry_shader_pairs"]:
@@ -139,8 +139,7 @@ def ApplyShadersToObject(object, versionString):
     jsonData = json.load(jsonFile)
 
     for childObject in object:
-        jsonShader = GetShaderFromObject(childObject, jsonData)     
-        print("jsonShader: " + jsonShader + "</>")   
+        jsonShader = GetShaderFromObject(childObject, jsonData) 
         shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
         importedShader = cmds.file(shaderPath, 
                                    i = True, 
@@ -157,8 +156,7 @@ def ApplyShadersToObject(object, versionString):
         cmds.select(childObject)
         cmds.hyperShade(assign = shader)
         
-
-
+        
 
 # ===========================================================================================================
 #   Main thread
