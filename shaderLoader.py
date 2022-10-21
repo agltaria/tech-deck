@@ -47,10 +47,6 @@ def GetAssetJSONFilename(assetName, version):
     return GetAssetMaterialDirectory(assetName) + assetName + "_surface" + ToVersionString(version) + ".json"
 
 
-def FindSecondOccurrenceOfSubstring(string, substring):
-    return string.find(substring, string.find(substring) + 1) # adapted from http://bit.ly/3yK93fP
-
-
 def FindNthOccurrenceOfSubstring(string, substring, n): #adapted from http://bit.ly/3VIfdXA
     start = string.find(substring)
 
@@ -68,10 +64,16 @@ def GetValidVersionsForObject(object):
     assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
     
     version = 1
-    while os.path.exists(GetAssetJSONFilename(assetName, version)) or version <= versionSearchLimit:
-        #TODO: add a check that the compatible model matches
+    while os.path.exists(GetAssetJSONFilename(assetName, version)) or version <= versionSearchLimit:       
         if os.path.exists(GetAssetJSONFilename(assetName, version)):
-            output.append(version) 
+            referencedModelPath = cmds.referenceQuery(object, filename = True)
+            referencedModelRelative = referencedModelPath[referencedModelPath.find("/publish") : len(referencedModelPath)]
+            jsonFile = open(GetAssetJSONFilename(assetName, version))
+            jsonData = json.load(jsonFile)
+            compatibleModel = jsonData["compatible_model"]
+
+            if (referencedModelRelative == compatibleModel):
+                output.append(version) 
 
         version += 1
 
@@ -119,7 +121,7 @@ def UI_ShaderLoader():
 
     cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center', enable = (len(availableVersions) > 0), command = "ApplyShadersToSelection()")
     cmds.separator(h = 30)
-    cmds.button(label = 'Update, Load and Apply All Shaders', align = 'center')
+    cmds.button(label = 'Update, Load and Apply All Shaders', align = 'center', command = 'ApplyAllShaders')
 
     cmds.showWindow('Shader_Loader')
 
@@ -127,6 +129,10 @@ def UI_ShaderLoader():
 def ApplyShadersToSelection():
     ApplyShadersToObject(selection, cmds.optionMenu(versionSelector, q = True, value = True))
     cmds.select(selection)
+
+
+def ApplyAllShaders():
+    print("Spoiler alert")
 
 
 def ApplyShadersToObject(object, versionString):
@@ -156,7 +162,7 @@ def ApplyShadersToObject(object, versionString):
                                         importTimeRange = "combine"
                                 )
             importedShaders.append(jsonShader)
-            
+
         shader = assetName + ":" + jsonShader[jsonShader.rfind("/") + 1 : jsonShader.rfind(".v")]
         cmds.select(childObject)
         cmds.hyperShade(assign = shader)
