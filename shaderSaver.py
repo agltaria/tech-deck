@@ -90,9 +90,7 @@ def SaveObjectShaders():
             targetParent = s[1 : FindSecondOccurrenceOfSubstring(s, "|mRef")]
             break
     
-    print(targetParent)
     selection = cmds.listRelatives(targetParent, children = True)
-    print(selection)
     cmds.select(selection)
 
     if len(selection) < 1 or selection == None: 

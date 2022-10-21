@@ -18,6 +18,12 @@ scenesDirectoryName = "/scenes"
 global jsonTemplatePath
 jsonTemplatePath = "/publish/assets/setPiece/<assetName>/surfacing/material/"
 
+global versionSearchLimit # number of JSON version 'searches' run if a given version isn't found
+versionSearchLimit = 100
+
+global shapeDepthFromRoot # Outliner 'depth' of the shapes
+shapeDepthFromRoot = 3
+
 
 #   Variables
 global versionSelector
@@ -33,7 +39,8 @@ def ToVersionString(version):
 
 def GetAssetMaterialDirectory(assetName):
     scenePath = cmds.file(q = True, sceneName = True)
-    return scenePath[:scenePath.rfind(scenesDirectoryName) + len(scenesDirectoryName)] + jsonTemplatePath.replace("<assetName>", assetName)
+    output = scenePath[:scenePath.rfind(scenesDirectoryName) + len(scenesDirectoryName)] + jsonTemplatePath.replace("<assetName>", assetName)
+    return output
 
 
 def GetAssetJSONFilename(assetName, version):
@@ -44,22 +51,35 @@ def FindSecondOccurrenceOfSubstring(string, substring):
     return string.find(substring, string.find(substring) + 1) # adapted from http://bit.ly/3yK93fP
 
 
+def FindNthOccurrenceOfSubstring(string, substring, n): #adapted from http://bit.ly/3VIfdXA
+    start = string.find(substring)
+
+    while start >= 0 and n > 1:
+        start = string.find(substring, start + len(substring))
+        n -= 1
+
+    return start
+
+
 def GetValidVersionsForObject(object):
     if object == None or len(object) <= 0: return [] # GUARD in case nothing is selected
 
     output = []
-    assetName = object[0].replace("mRef_", "")
+    assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
     
     version = 1
-    while os.path.exists(GetAssetJSONFilename(assetName, version)):
-        output.append(version) #TODO: add a check that the compatible model matches
+    while os.path.exists(GetAssetJSONFilename(assetName, version)) or version <= versionSearchLimit:
+        #TODO: add a check that the compatible model matches
+        if os.path.exists(GetAssetJSONFilename(assetName, version)):
+            output.append(version) 
+
         version += 1
 
     return output
 
 
 def GetShaderFromObject(childObject, jsonData):
-    shapeName = childObject[FindSecondOccurrenceOfSubstring(childObject, "|") + 1 : childObject.rfind("|")]
+    shapeName = childObject[FindNthOccurrenceOfSubstring(childObject, "|", shapeDepthFromRoot) + 1 : childObject.rfind("|")]
     
     for p in jsonData["geometry_shader_pairs"]:
         if p["shape"] == shapeName:
@@ -105,11 +125,12 @@ def UI_ShaderLoader():
 
 def ApplyShadersToSelection():
     ApplyShadersToObject(selection, cmds.optionMenu(versionSelector, q = True, value = True))
-    # cmds.select(selection)
+    cmds.select(selection)
 
 
 def ApplyShadersToObject(object, versionString):
-    assetName = object[0][1 : FindSecondOccurrenceOfSubstring(object[0], "|")].replace("mRef_", "")
+    assetPrefix = ":" + targetObjectSubstring
+    assetName = object[0][object[0].find(assetPrefix) + len(assetPrefix) : FindNthOccurrenceOfSubstring(object[0], "|", shapeDepthFromRoot)]
     shaderDirectory = GetAssetMaterialDirectory(assetName)
 
     version = int(versionString[2:len(versionString)])
@@ -117,8 +138,11 @@ def ApplyShadersToObject(object, versionString):
     jsonData = json.load(jsonFile)
 
     for childObject in object:
-        jsonShader = GetShaderFromObject(childObject, jsonData)        
+        print(childObject)
+        jsonShader = GetShaderFromObject(childObject, jsonData)     
+        print(jsonShader)   
         shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
+        print(shaderPath)
         importedShader = cmds.file(shaderPath, 
                                    i = True, 
                                    type = "mayaBinary", 
@@ -131,7 +155,6 @@ def ApplyShadersToObject(object, versionString):
                                    importTimeRange = "combine"
                          )
         shader = assetName + ":" + jsonShader[jsonShader.rfind("/") + 1 : jsonShader.rfind(".v")]
-        # cmds.select(shader)
         cmds.select(childObject)
         cmds.hyperShade(assign = shader)
         
