@@ -138,20 +138,25 @@ def ApplyShadersToObject(object, versionString):
     jsonFile = open(GetAssetJSONFilename(assetName, version))
     jsonData = json.load(jsonFile)
 
+    importedShaders = []
     for childObject in object:
         jsonShader = GetShaderFromObject(childObject, jsonData) 
-        shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
-        importedShader = cmds.file(shaderPath, 
-                                   i = True, 
-                                   type = "mayaBinary", 
-                                   ignoreVersion = True, 
-                                   renameAll = True, 
-                                   mergeNamespacesOnClash = True,
-                                   namespace = assetName,
-                                   options = "v=0;p=17;f=0",
-                                   preserveReferences = True,
-                                   importTimeRange = "combine"
-                         )
+
+        if (importedShaders.__contains__(jsonShader) == False):
+            shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
+            importedShader = cmds.file(shaderPath, 
+                                        i = True, 
+                                        type = "mayaBinary", 
+                                        ignoreVersion = True, 
+                                        renameAll = True, 
+                                        mergeNamespacesOnClash = True,
+                                        namespace = assetName,
+                                        options = "v=0;p=17;f=0",
+                                        preserveReferences = True,
+                                        importTimeRange = "combine"
+                                )
+            importedShaders.append(jsonShader)
+            
         shader = assetName + ":" + jsonShader[jsonShader.rfind("/") + 1 : jsonShader.rfind(".v")]
         cmds.select(childObject)
         cmds.hyperShade(assign = shader)
