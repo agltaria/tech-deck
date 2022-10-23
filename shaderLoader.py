@@ -138,31 +138,29 @@ def ApplyAllShaders():
     
     for o in setObjects:
         validVersions = GetValidVersionsForObject([o])
-        print([o])
 
-        print(validVersions)
         if len(validVersions) > 0:
             ApplyShadersToObject([o], ToVersionString(validVersions[len(validVersions) - 1]))
 
 
 def ApplyShadersToObject(object, versionString):
-    assetPrefix = ":" + targetObjectSubstring
     assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
     
     shaderDirectory = GetAssetMaterialDirectory(assetName)
 
     version = int(versionString[2:len(versionString)])
-    print(assetName)
     jsonFile = open(GetAssetJSONFilename(assetName, version))
     jsonData = json.load(jsonFile)
 
     importedShaders = []
-    for childObject in object:
+    children = cmds.listRelatives(object, children = True, fullPath = True)
+    for childObject in children:
         jsonShader = GetShaderFromObject(childObject, jsonData) 
 
         if (importedShaders.__contains__(jsonShader) == False):
             shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
-
+            print(jsonShader)
+            print("Attempting to open file: " + shaderPath)
             importedShader = cmds.file(
                 shaderPath, 
                 i = True, 
