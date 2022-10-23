@@ -129,7 +129,7 @@ def UI_ShaderLoader():
 
 
 def ApplyShadersToSelection():
-    ApplyShadersToObject(selection, cmds.optionMenu(versionSelector, q = True, value = True))
+    ApplyShadersToObject(selection[0][FindNthOccurrenceOfSubstring(selection[0], "|", 2) : FindNthOccurrenceOfSubstring(selection[0], "|", 3)], cmds.optionMenu(versionSelector, q = True, value = True))
     cmds.select(selection)
 
 
@@ -145,6 +145,7 @@ def ApplyAllShaders():
 
 def ApplyShadersToObject(object, versionString):
     assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
+    # this shit's the culprit...again ^
     
     shaderDirectory = GetAssetMaterialDirectory(assetName)
 
