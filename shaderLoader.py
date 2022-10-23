@@ -147,8 +147,7 @@ def ApplyAllShaders():
 
 def ApplyShadersToObject(object, versionString):
     assetPrefix = ":" + targetObjectSubstring
-    assetName = object[0][object[0].find(assetPrefix) + len(assetPrefix) : FindNthOccurrenceOfSubstring(object[0], "|", shapeDepthFromRoot)] 
-    # this piece of shit's the culprit ^
+    assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
     
     shaderDirectory = GetAssetMaterialDirectory(assetName)
 

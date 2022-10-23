@@ -52,7 +52,7 @@ def FindSecondOccurrenceOfSubstring(string, substring):
 
 
 #   Methods
-def PreloadVersion():
+def LoadVersion():
     sceneName = GetSceneName()
     versionString = sceneName[sceneName.rfind('.v') + 2 : len(sceneName)] # adapted from http://bit.ly/3EFPd97
 
@@ -81,7 +81,9 @@ def UI_ShaderSaver():
     cmds.showWindow('Shader_Saver')
 
 
-def SaveObjectShaders():       
+def SaveObjectShaders():
+    LoadVersion()
+
     allShapes = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, long = True)
     
     targetParent = None
@@ -179,5 +181,4 @@ def SaveShaderOnObject(object):
 # ===========================================================================================================
 #   Main thread
 
-PreloadVersion()
 UI_ShaderSaver()
