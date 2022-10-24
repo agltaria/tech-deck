@@ -33,8 +33,6 @@ def GetPublishDirectory(destination):
     # adapted from http://bit.ly/3CtWiqT and http://bit.ly/3e8rfsc
     return scenePath[:scenePath.rfind('/') + 1].replace(wipDirectoryName, publishDirectoryName) + destination
 
-    # apparently there's supposed to be a '/source' folder alongside material.....that's for publishing the wip surfacing scene
-
 
 def ToVersionString(version):
     if version < 10: return ".v00" + str(version)
@@ -115,7 +113,6 @@ def SaveObjectShaders():
 
         id += 1
 
-    # need to include source model version to enable dependency checks in Loader
     referencedModelPath = cmds.referenceQuery(selection[0], filename = True)
     compatibleModel = referencedModelPath[referencedModelPath.rfind("/" + publishDirectoryName) : len(referencedModelPath)]
 
@@ -166,7 +163,6 @@ def SaveShaderOnObject(object):
 
     destinationDirectory = GetPublishDirectory("material/")
     for s in shaders:
-        # this needs version incrementing. Should be no file-overwriting!
         cmds.select(s)
         filename = destinationDirectory + s + version + ".mb"
         if os.path.exists(filename) == False:

@@ -129,7 +129,9 @@ def UI_ShaderLoader():
 
 
 def ApplyShadersToSelection():
-    ApplyShadersToObject(selection[0][FindNthOccurrenceOfSubstring(selection[0], "|", 2) : FindNthOccurrenceOfSubstring(selection[0], "|", 3)], cmds.optionMenu(versionSelector, q = True, value = True))
+    #[FindNthOccurrenceOfSubstring(selection[0], "|", 2) : FindNthOccurrenceOfSubstring(selection[0], "|", 3)]
+    print(selection)
+    ApplyShadersToObject([selection[0][:FindNthOccurrenceOfSubstring(selection[0], "|", 3)]], cmds.optionMenu(versionSelector, q = True, value = True))
     cmds.select(selection)
 
 
@@ -144,8 +146,9 @@ def ApplyAllShaders():
 
 
 def ApplyShadersToObject(object, versionString):
-    assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
-    # this shit's the culprit...again ^
+    print(object)
+    #['|setGeo|loungeRoom_model_v002:mRef_couch01']
+    assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])].replace("Shape", "")
     
     shaderDirectory = GetAssetMaterialDirectory(assetName)
 
