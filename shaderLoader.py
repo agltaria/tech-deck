@@ -29,9 +29,14 @@ setGeoName = "setGeo"
 
 
 #   Variables
+global versionSelectorItems
+versionSelectorItems = []
+
 global versionSelector
 global applyObjectButton
+
 global selection
+global availableVersions
 
 
 #   Functions
@@ -98,11 +103,6 @@ def GetShaderFromObject(childObject, jsonData):
 
 
 #   Methods
-def StoreSelection():
-    global selection
-    selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, long = True, selection = True)
-
-
 def UI_ShaderLoader():
     if cmds.window('Shader_Loader', exists = True): cmds.deleteUI('Shader_Loader')
 
@@ -117,12 +117,14 @@ def UI_ShaderLoader():
     cmds.text('Shader Saver in a Surfacing scene')
     cmds.separator(h = 30)
 
+    global availableVersions
     availableVersions = GetValidVersionsForObject(cmds.ls(selection = True))
     global versionSelector
     versionSelector = cmds.optionMenu(label = 'Available Versions:')
+    global versionSelectorItems
     for v in availableVersions:
         versionString = ToVersionString(v)
-        cmds.menuItem(label = versionString)
+        versionSelectorItems.append(cmds.menuItem(label = versionString))
 
     global applyObjectButton
     applyObjectButton = cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center', enable = (len(availableVersions) > 0), command = "ApplyShadersToSelection()")
@@ -135,12 +137,19 @@ def UI_ShaderLoader():
 
 
 def SJ_UpdateLoaderUI():
+    global availableVersions
+    oldAvailableVersions = availableVersions
     availableVersions = GetValidVersionsForObject(cmds.ls(selection = True))
-    # global versionSelector
-    # versionSelector = cmds.optionMenu(label = 'Available Versions:')
-    # for v in availableVersions:
-    #     versionString = ToVersionString(v)
-    #     cmds.menuItem(label = versionString)
+
+    if (availableVersions != oldAvailableVersions):
+        global versionSelectorItems
+        if len(versionSelectorItems) > 0: cmds.deleteUI(versionSelectorItems, menuItem = True)
+
+        versionSelectorItems = []
+
+        for v in availableVersions:
+            versionString = ToVersionString(v)
+            versionSelectorItems.append(cmds.menuItem(versionSelector, label = versionString))
 
     cmds.button(applyObjectButton, edit = True, enable = (len(availableVersions) > 0))
 
@@ -159,6 +168,11 @@ def ApplyAllShaders():
 
         if len(validVersions) > 0:
             ApplyShadersToObject([o], ToVersionString(validVersions[len(validVersions) - 1]))
+
+
+def StoreSelection():
+    global selection
+    selection = cmds.ls(dagObjects = True, objectsOnly = True, shapes = True, long = True, selection = True)
 
 
 def ApplyShadersToObject(object, versionString):
