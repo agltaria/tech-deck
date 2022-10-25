@@ -30,6 +30,7 @@ setGeoName = "setGeo"
 
 #   Variables
 global versionSelector
+global applyObjectButton
 global selection
 
 
@@ -77,6 +78,8 @@ def GetValidVersionsForObject(object):
 
             if (referencedModelRelative == compatibleModel):
                 output.append(version) 
+            else:
+                print("Shader Loader | Incompatible model! referenced model: " + referencedModelRelative + ", required model: " + compatibleModel)
 
         version += 1
 
@@ -121,14 +124,29 @@ def UI_ShaderLoader():
         versionString = ToVersionString(v)
         cmds.menuItem(label = versionString)
 
-    cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center', enable = (len(availableVersions) > 0), command = "ApplyShadersToSelection()")
+    global applyObjectButton
+    applyObjectButton = cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center', enable = (len(availableVersions) > 0), command = "ApplyShadersToSelection()")
     cmds.separator(h = 30)
     cmds.button(label = 'Update, Load and Apply All Shaders', align = 'center', command = 'ApplyAllShaders()')
 
     cmds.showWindow('Shader_Loader')
 
+    cmds.scriptJob(event = ["SelectionChanged", SJ_UpdateLoaderUI], parent = "Shader_Loader", replacePrevious = True)
+
+
+def SJ_UpdateLoaderUI():
+    availableVersions = GetValidVersionsForObject(cmds.ls(selection = True))
+    # global versionSelector
+    # versionSelector = cmds.optionMenu(label = 'Available Versions:')
+    # for v in availableVersions:
+    #     versionString = ToVersionString(v)
+    #     cmds.menuItem(label = versionString)
+
+    cmds.button(applyObjectButton, edit = True, enable = (len(availableVersions) > 0))
+
 
 def ApplyShadersToSelection():
+    StoreSelection()
     ApplyShadersToObject([selection[0][:FindNthOccurrenceOfSubstring(selection[0], "|", 3)]], cmds.optionMenu(versionSelector, q = True, value = True))
     cmds.select(selection)
 
@@ -185,5 +203,4 @@ def ApplyShadersToObject(object, versionString):
 # ===========================================================================================================
 #   Main thread
 
-StoreSelection()
 UI_ShaderLoader()
