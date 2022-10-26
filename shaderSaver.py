@@ -24,6 +24,9 @@ targetObjectSubstring = "mRef_"
 
 #   Variables
 global currentVersion
+global outputWindow
+global checkbox
+global outputWindowHeight
 
 
 #   Functions
@@ -63,7 +66,7 @@ def LoadVersion():
 def UI_ShaderSaver():
     if cmds.window('Shader_Saver', exists = True): cmds.deleteUI('Shader_Saver')
 
-    cmds.window('Shader_Saver', widthHeight = (200, 210), sizeable = False, resizeToFitChildren = True)
+    cmds.window('Shader_Saver', widthHeight = (200, 240), sizeable = False, resizeToFitChildren = True)
     cmds.columnLayout(columnAttach = ('both', 5), rowSpacing = 10, columnWidth = 220)
 
     cmds.text(' ')
@@ -75,8 +78,30 @@ def UI_ShaderSaver():
     cmds.separator(h = 30)
 
     cmds.button(label = 'Save Object\'s Shaders', align = 'center', command = 'SaveObjectShaders()')
+    global checkbox
+    checkbox = cmds.checkBox(label = 'Show log output')
 
     cmds.showWindow('Shader_Saver')
+
+
+def UI_Output(string):
+    print(string)
+    
+    if cmds.checkBox(checkbox, value = True, q = True) == False: return;
+
+    global outputWindow
+    outputWindow = "Shader_Saver_Log"
+    global outputWindowHeight
+    if cmds.window(outputWindow, exists = True) == False:
+        outputWindowHeight = 20
+        cmds.window(outputWindow, widthHeight = (1000, outputWindowHeight), sizeable = False, resizeToFitChildren = True)
+        cmds.columnLayout(columnAttach = ("both", 5), rowSpacing = 10, columnWidth = 1000)
+
+    outputWindowHeight += 20
+    cmds.window(outputWindow, edit = True, height = outputWindowHeight)
+    cmds.text(string, align = "left")
+    cmds.showWindow(outputWindow)
+
 
 
 def SaveObjectShaders():
@@ -128,25 +153,25 @@ def SaveObjectShaders():
     with open(jsonFilepath, "w", encoding = "utf-8") as writtenFile:
         writtenFile.write(json.dumps(jsonOutput, ensure_ascii = False, indent = 4))
 
-    print("Shader Saver | JSON saved: " + jsonFilepath)
+    UI_Output("Shader Saver | JSON saved: " + jsonFilepath)
 
     currentVersion += 1
-    print("Shader Saver | Incremented Current Version to " + ToVersionString(currentVersion))
+    UI_Output("Shader Saver | Incremented Current Version to " + ToVersionString(currentVersion))
 
     scenePath = cmds.file(q = True, sceneName = True)
 
     savedSourceDirectory = GetPublishDirectory("source/")
     if os.path.isdir(savedSourceDirectory) == False: 
         os.mkdir(savedSourceDirectory)
-        print("Shader Saver | Created directory: " + savedSourceDirectory)
+        UI_Output("Shader Saver | Created directory: " + savedSourceDirectory)
 
     sourceOutputPath = GetPublishDirectory("/source/") + GetSceneName() + ".mb"
     cmds.file(rename = sourceOutputPath)
     cmds.file(save = True, type = "mayaBinary")
-    print("Shader Saver | Source Scene saved: " + cmds.file(q = True, sceneName = True))
+    UI_Output("Shader Saver | Source Scene saved: " + cmds.file(q = True, sceneName = True))
     
     cmds.file(rename = scenePath[:scenePath.rfind(".v")] + ToVersionString(currentVersion) + ".mb")
-    print("Shader Saver | Open Scene version incremented: " + GetSceneName())
+    UI_Output("Shader Saver | Open Scene version incremented: " + GetSceneName())
 
     cmds.select(selection)
 
@@ -167,7 +192,7 @@ def SaveShaderOnObject(object):
         filename = destinationDirectory + s + version + ".mb"
         if os.path.exists(filename) == False:
             output = cmds.file(destinationDirectory + s + version, options = "v=0;p=17;f=0", type = "mayaBinary", preserveReferences = True, exportSelected = True, saveReferencesUnloaded = True)
-            print("Shader Saver | Material saved: " + output)
+            UI_Output("Shader Saver | Material saved: " + output)
             return output
 
         return filename
