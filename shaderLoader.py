@@ -72,6 +72,8 @@ def GetValidVersionsForObject(object):
     output = []
     assetName = object[0][object[0].rfind(targetObjectSubstring) + len(targetObjectSubstring) : len(object[0])]
     
+    print("Shader Loader | Searching for " + GetAssetJSONFilename(assetName, 0))
+
     version = 1
     while os.path.exists(GetAssetJSONFilename(assetName, version)) or version <= versionSearchLimit:       
         if os.path.exists(GetAssetJSONFilename(assetName, version)):
@@ -81,8 +83,10 @@ def GetValidVersionsForObject(object):
             jsonData = json.load(jsonFile)
             compatibleModel = jsonData["compatible_model"]
 
+
             if (referencedModelRelative == compatibleModel):
                 output.append(version) 
+                print("Shader Loader | Found version: " + str(version))
             else:
                 print("Shader Loader | Incompatible model! referenced model: " + referencedModelRelative + ", required model: " + compatibleModel)
 
@@ -184,6 +188,8 @@ def ApplyShadersToObject(object, versionString):
     jsonFile = open(GetAssetJSONFilename(assetName, version))
     jsonData = json.load(jsonFile)
 
+    print("Shader Loader | Loaded JSON: " + GetAssetJSONFilename(assetName, version))
+
     importedShaders = []
     children = cmds.listRelatives(object, children = True, fullPath = True)
     for childObject in children:
@@ -191,8 +197,7 @@ def ApplyShadersToObject(object, versionString):
 
         if (importedShaders.__contains__(jsonShader) == False):
             shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
-            print(jsonShader)
-            print("Attempting to open file: " + shaderPath)
+            print("Shader Loader | Attempting to import shader: " + shaderPath)
             importedShader = cmds.file(
                 shaderPath, 
                 i = True, 
@@ -211,6 +216,8 @@ def ApplyShadersToObject(object, versionString):
         shader = assetName + ":" + jsonShader[jsonShader.rfind("/") + 1 : jsonShader.rfind(".v")]
         cmds.select(childObject)
         cmds.hyperShade(assign = shader)
+
+        print("Shader Loader | Successfully assigned shader " + shader + " to object " + childObject)
         
         
 
