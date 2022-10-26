@@ -33,7 +33,12 @@ global versionSelectorItems
 versionSelectorItems = []
 
 global versionSelector
+versionSelector = "ShaderLoaderVersionSelector"
+
 global applyObjectButton
+global outputWindow
+global checkbox
+global outputWindowHeight
 
 global selection
 global availableVersions
@@ -110,7 +115,7 @@ def GetShaderFromObject(childObject, jsonData):
 def UI_ShaderLoader():
     if cmds.window('Shader_Loader', exists = True): cmds.deleteUI('Shader_Loader')
 
-    cmds.window('Shader_Loader', widthHeight = (200, 310), sizeable = False, resizeToFitChildren = True)
+    cmds.window('Shader_Loader', widthHeight = (200, 340), sizeable = False, resizeToFitChildren = True)
     cmds.columnLayout(columnAttach = ('both', 5), rowSpacing = 10, columnWidth = 220)
 
     cmds.text(' ')
@@ -123,21 +128,42 @@ def UI_ShaderLoader():
 
     global availableVersions
     availableVersions = GetValidVersionsForObject(cmds.ls(selection = True))
-    global versionSelector
-    versionSelector = cmds.optionMenu(label = 'Available Versions:')
+    cmds.optionMenu(versionSelector, label = 'Available Versions:')
     global versionSelectorItems
     for v in availableVersions:
         versionString = ToVersionString(v)
-        versionSelectorItems.append(cmds.menuItem(label = versionString))
+        versionSelectorItems.append(cmds.menuItem(label = versionString, parent = versionSelector))
 
     global applyObjectButton
     applyObjectButton = cmds.button(label = 'Load and Apply Object\'s Shaders', align = 'center', enable = (len(availableVersions) > 0), command = "ApplyShadersToSelection()")
     cmds.separator(h = 30)
     cmds.button(label = 'Update, Load and Apply All Shaders', align = 'center', command = 'ApplyAllShaders()')
+    
+    global checkbox
+    checkbox = cmds.checkBox(label = "Show log output")
 
     cmds.showWindow('Shader_Loader')
 
     cmds.scriptJob(event = ["SelectionChanged", SJ_UpdateLoaderUI], parent = "Shader_Loader", replacePrevious = True)
+
+
+def UI_Output(string):
+    print(string)
+    
+    if cmds.checkBox(checkbox, value = True, q = True) == False: return;
+
+    global outputWindow
+    outputWindow = "Shader_Loader_Log"
+    global outputWindowHeight
+    if cmds.window(outputWindow, exists = True) == False:
+        outputWindowHeight = 20
+        cmds.window(outputWindow, widthHeight = (1200, outputWindowHeight), sizeable = False, resizeToFitChildren = True)
+        cmds.columnLayout(columnAttach = ("both", 5), rowSpacing = 10, columnWidth = 1200)
+
+    outputWindowHeight += 22
+    cmds.window(outputWindow, edit = True, height = outputWindowHeight)
+    cmds.text(string, align = "left")
+    cmds.showWindow(outputWindow)
 
 
 def SJ_UpdateLoaderUI():
@@ -145,7 +171,7 @@ def SJ_UpdateLoaderUI():
     oldAvailableVersions = availableVersions
     availableVersions = GetValidVersionsForObject(cmds.ls(selection = True))
 
-    if (availableVersions != oldAvailableVersions):
+    if availableVersions != oldAvailableVersions:
         global versionSelectorItems
         if len(versionSelectorItems) > 0: cmds.deleteUI(versionSelectorItems, menuItem = True)
 
@@ -153,7 +179,7 @@ def SJ_UpdateLoaderUI():
 
         for v in availableVersions:
             versionString = ToVersionString(v)
-            versionSelectorItems.append(cmds.menuItem(versionSelector, label = versionString))
+            versionSelectorItems.append(cmds.menuItem(label = versionString, parent = versionSelector))
 
     cmds.button(applyObjectButton, edit = True, enable = (len(availableVersions) > 0))
 
@@ -188,7 +214,7 @@ def ApplyShadersToObject(object, versionString):
     jsonFile = open(GetAssetJSONFilename(assetName, version))
     jsonData = json.load(jsonFile)
 
-    print("Shader Loader | Loaded JSON: " + GetAssetJSONFilename(assetName, version))
+    UI_Output("Shader Loader | Loaded JSON: " + GetAssetJSONFilename(assetName, version))
 
     importedShaders = []
     children = cmds.listRelatives(object, children = True, fullPath = True)
@@ -197,7 +223,7 @@ def ApplyShadersToObject(object, versionString):
 
         if (importedShaders.__contains__(jsonShader) == False):
             shaderPath = shaderDirectory + jsonShader[jsonShader.rfind("/") + 1 : len(jsonShader)]
-            print("Shader Loader | Attempting to import shader: " + shaderPath)
+            UI_Output("Shader Loader | Attempting to import shader: " + shaderPath)
             importedShader = cmds.file(
                 shaderPath, 
                 i = True, 
@@ -217,7 +243,7 @@ def ApplyShadersToObject(object, versionString):
         cmds.select(childObject)
         cmds.hyperShade(assign = shader)
 
-        print("Shader Loader | Successfully assigned shader " + shader + " to object " + childObject)
+        UI_Output("Shader Loader | Successfully assigned shader " + shader + " to object " + childObject)
         
         
 

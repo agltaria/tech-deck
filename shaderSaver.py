@@ -97,7 +97,7 @@ def UI_Output(string):
         cmds.window(outputWindow, widthHeight = (1000, outputWindowHeight), sizeable = False, resizeToFitChildren = True)
         cmds.columnLayout(columnAttach = ("both", 5), rowSpacing = 10, columnWidth = 1000)
 
-    outputWindowHeight += 20
+    outputWindowHeight += 22
     cmds.window(outputWindow, edit = True, height = outputWindowHeight)
     cmds.text(string, align = "left")
     cmds.showWindow(outputWindow)
