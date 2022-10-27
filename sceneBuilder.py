@@ -1,20 +1,12 @@
 import os
 import os.path
 import maya.cmds as cmds
-
+from glob import glob
 
 def loadAsset(newRefPath, currentRefNode):
     cmds.file(newRefPath, loadReference = currentRefNode)
     return
 
-
-def checkSelection(singleButton):
-    objects = []
-    for selection in cmds.ls(sl=True):
-        check = cmds.referenceQuery(selection, inr = True)
-        
-        if (len(objects) > 1) or (check == 0):
-            singleButton = cmds.button(enabled = False)
 
 #read version number
 def readFileVersion(fileName):
@@ -43,15 +35,22 @@ def isLatest(currentFile, directoryFile): #compare current file version with fil
     else:
         return False
 
-def returnLatest(currentFile):
+def returnLatest(currentFile): #returns name of most updated file
         filePath = cmds.referenceQuery(currentFile, f = True)
         folderPath = os.path.dirname(filePath)
-        filesInDir = os.listdir(folderPath)   
-        files = getRelevantFiles(filesInDir, filePath)
+        print(folderPath)
+        filesInDir = os.listdir(folderPath)
+        files = getRelevantFiles(filesInDir, filePath) #only get files with asset name in them
         for file in files:
             if not isLatest(currentFile, file):
                 return file
         return currentFile
+
+def returnLatestPath(currentFile, latestFile):
+    filePath = cmds.referenceQuery(currentFile, f = True)
+    folderPath = os.path.dirname(filePath)
+    path = os.path.abspath(os.path.join(folderPath, latestFile))
+    return path
 
 def updateSingle():
     objects = []
@@ -78,31 +77,33 @@ def updateSingle():
         elif(check == 1):
             objects.append(selection)
             filePath = cmds.referenceQuery(objects[0], f = True)
-            loadAsset(returnLatest(filePath), objects[0])
+            updatedAsset = returnLatest(filePath)
+            latestPath = returnLatestPath(filePath, updatedAsset)
+            loadAsset(latestPath, cmds.referenceQuery(objects[0], rfn = True))
             if cmds.window('alert', exists = True):
                 cmds.deleteUI('alert')
             cmds.window('alert', title = "Warning", w = 300, h = 25)
             info = cmds.columnLayout(co = ('both', 10))
             cmds.text("Asset updated.")
             cmds.showWindow('alert')
-            print(returnLatest(filePath))
             
 def checkAllForUpdates():
     objects = []
     updatesAvailable = []
-    for object in cmds.ls(rf = True):
-        #check if object is a reference
+    for object in cmds.ls(rf = True):#check if object is a reference before adding
         objects.append(object)
+
     for object in objects:
         filePath = cmds.referenceQuery(object, f = True)
         folderPath = os.path.dirname(filePath)
         filesInDir = os.listdir(folderPath)   
+        print(filesInDir)
         files = getRelevantFiles(filesInDir, filePath)
-        print(files)
         for file in files:
             if not isLatest(filePath, file):
-                print(file)
+                print(getFileName(filePath))
                 updatesAvailable.append(filePath)
+
     if updatesAvailable.count == 0:
         print("Up to date!")
     else:
@@ -114,7 +115,6 @@ def checkAllForUpdates():
         for file in updatesAvailable:
             text = cmds.text(str(getFileName(file)))
         cmds.showWindow('alert')
-        print(updatesAvailable)
 
 
 def updateAll():
