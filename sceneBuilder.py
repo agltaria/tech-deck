@@ -1,49 +1,131 @@
+import os
+import os.path
 import maya.cmds as cmds
 
-windowsPath = ""
-linuxPath = ""
-#def checkDep():
-    #Read file name to determine which department to build scene for
 
-#def loadAssets():
+def loadAsset(newRefPath, currentRefNode):
+    cmds.file(newRefPath, loadReference = currentRefNode)
+    return
 
+
+def checkSelection(singleButton):
+    objects = []
+    for selection in cmds.ls(sl=True):
+        check = cmds.referenceQuery(selection, inr = True)
+        
+        if (len(objects) > 1) or (check == 0):
+            singleButton = cmds.button(enabled = False)
 
 #read version number
-def readFileVersion(file):
-    fileVer = file[-2:]
-    verNum = int(fileVer)
+def readFileVersion(fileName):
+    fileVer = fileName.split('.')[1]
+    verNum = int(fileVer[-3:])
     return verNum
 
-#compare current file ver with latest file in folder
-def isLatest(currentVer, file):
-    #get folder of asset
-    if currentVer > readFileVersion(file):
+def getFileName(file):
+    name = cmds.referenceQuery(file, f = True, shortName = True)   
+    return name
+
+def getRelevantFiles(filesInDir, selectedFile): #gets all file versions and filters out any other files that may be in the main folder
+    relevantFiles = []
+    fileNameToSplit = os.path.basename(selectedFile)
+    indexDot = fileNameToSplit.index('.')
+    fileName = fileNameToSplit[:indexDot]
+    for file in filesInDir:
+        if fileName in file:
+            relevantFiles.append(file)
+    return relevantFiles
+
+
+def isLatest(currentFile, directoryFile): #compare current file version with files in directory
+    if readFileVersion(currentFile) >= readFileVersion(directoryFile):
         return True
-    return False
+    else:
+        return False
+
+def returnLatest(currentFile):
+        filePath = cmds.referenceQuery(currentFile, f = True)
+        folderPath = os.path.dirname(filePath)
+        filesInDir = os.listdir(folderPath)   
+        files = getRelevantFiles(filesInDir, filePath)
+        for file in files:
+            if not isLatest(currentFile, file):
+                return file
+        return currentFile
 
 def updateSingle():
     objects = []
-    #checking how many objects are selected
-    for selection in cmds.ls(sl=True):
-        objects.append(selection) 
-    if len(objects) > 1:
+    for selection in cmds.ls(sl=True): #checking how many objects are selected
+        check = cmds.referenceQuery(selection, inr = True) #is asset a reference?
+        if len(objects) > 1: #blocks off multi-select
+            if cmds.window('alert', exists = True):
+                cmds.deleteUI('alert')
+            cmds.window('alert', title = "Warning", w = 300, h = 25)
+            info = cmds.columnLayout(co = ('both', 10))
+            cmds.text("Please select only one asset.")
+            cmds.showWindow('alert')
+            raise Exception("Please select only one asset.")
+        
+        if(check == 0): #blocks off selecting a non-reference asset
+            if cmds.window('alert', exists = True):
+                cmds.deleteUI('alert')
+            cmds.window('alert', title = "Warning", w = 300, h = 25)
+            info = cmds.columnLayout(co = ('both', 10))
+            cmds.text("Please select a reference asset only.")
+            cmds.showWindow('alert')
+            raise Exception("Please select a reference asset only.") 
+
+        elif(check == 1):
+            objects.append(selection)
+            filePath = cmds.referenceQuery(objects[0], f = True)
+            loadAsset(returnLatest(filePath), objects[0])
+            if cmds.window('alert', exists = True):
+                cmds.deleteUI('alert')
+            cmds.window('alert', title = "Warning", w = 300, h = 25)
+            info = cmds.columnLayout(co = ('both', 10))
+            cmds.text("Asset updated.")
+            cmds.showWindow('alert')
+            print(returnLatest(filePath))
+            
+def checkAllForUpdates():
+    objects = []
+    updatesAvailable = []
+    for object in cmds.ls(rf = True):
+        #check if object is a reference
+        objects.append(object)
+    for object in objects:
+        filePath = cmds.referenceQuery(object, f = True)
+        folderPath = os.path.dirname(filePath)
+        filesInDir = os.listdir(folderPath)   
+        files = getRelevantFiles(filesInDir, filePath)
+        print(files)
+        for file in files:
+            if not isLatest(filePath, file):
+                print(file)
+                updatesAvailable.append(filePath)
+    if updatesAvailable.count == 0:
+        print("Up to date!")
+    else:
         if cmds.window('alert', exists = True):
             cmds.deleteUI('alert')
-        cmds.window('alert', title = "Warning", w = 300, h = 25)
+        cmds.window('alert', title = "Warning", w = 150, h = 25)
         info = cmds.columnLayout(co = ('both', 10))
-        cmds.text("Please select only one asset.")
+        cmds.text("The following assets have updates available: ")
+        for file in updatesAvailable:
+            text = cmds.text(str(getFileName(file)))
         cmds.showWindow('alert')
-        raise Exception("Please select only one asset.")
-    else:
-        return
+        print(updatesAvailable)
+
 
 def updateAll():
-    return
-    #for each asset in outliner
+    #for each asset reference in outliner
+    objects = []
+    for object in cmds.ls(rf = True):
+        #check if object is a reference
+        objects.append(object)
     
-        #check if version number is biggest
-        #if not, update asset
-    #catch for errors
+    print(objects)
+    return
 
 def sceneBuilder():
     if cmds.window('sceneBuilder', exists = True):
@@ -51,12 +133,28 @@ def sceneBuilder():
 
     cmds.window('sceneBuilder', resizeToFitChildren = True, sizeable = False)
     info = cmds.columnLayout(co = ('both', 10))
-
+    cmds.text("SCENE BUILDER")
     updateButtons = cmds.rowColumnLayout(parent = info, numberOfRows = 1)
+    cmds.button(label = 'Check for updates', command = 'checkAllForUpdates()')
+    cmds.separator(w = 10, st = 'none')
     cmds.button(label = 'Update asset', command = 'updateSingle()')
+    cmds.separator(w = 10, st = 'none')
+    versions = cmds.optionMenu()
+
     cmds.separator(w = 10, st = 'none')
     cmds.button(label = 'Update all', command = 'updateAll()')
     cmds.showWindow('sceneBuilder')
 
-
 sceneBuilder()
+
+"""
+referenceList = cmds.ls(rf = True)
+
+for reference in referenceList:
+    path = cmds.referenceQuery(reference, f = True)
+    folderPath = os.path.dirname(path)
+    fileNameToSplit = os.path.basename(path)
+    indexDot = fileNameToSplit.index('.')
+    fileName = fileNameToSplit[:indexDot]
+    print(fileName)
+"""
