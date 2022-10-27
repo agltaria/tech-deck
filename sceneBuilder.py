@@ -54,7 +54,7 @@ def updateSingle():
     objects = []
     for selection in cmds.ls(sl=True): #checking how many objects are selected
         check = cmds.referenceQuery(selection, inr = True) #is asset a reference?
-        if len(selection) > 1: #blocks off multi-select
+        if cmds.ls(sl = True, head = 2):
             if cmds.window('alert', exists = True):
                 cmds.deleteUI('alert')
             cmds.window('alert', title = "Warning", w = 300, h = 25)
