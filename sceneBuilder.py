@@ -54,7 +54,7 @@ def updateSingle():
     objects = []
     for selection in cmds.ls(sl=True): #checking how many objects are selected
         check = cmds.referenceQuery(selection, inr = True) #is asset a reference?
-        if len(objects) > 1: #blocks off multi-select
+        if len(selection) > 1: #blocks off multi-select
             if cmds.window('alert', exists = True):
                 cmds.deleteUI('alert')
             cmds.window('alert', title = "Warning", w = 300, h = 25)
@@ -95,11 +95,9 @@ def checkAllForUpdates():
         filePath = cmds.referenceQuery(object, f = True)
         folderPath = os.path.dirname(filePath)
         filesInDir = os.listdir(folderPath)   
-        print(filesInDir)
         files = getRelevantFiles(filesInDir, filePath)
         for file in files:
             if not isLatest(filePath, file):
-                print(getFileName(filePath))
                 updatesAvailable.append(filePath)
 
     if not updatesAvailable:
@@ -123,15 +121,17 @@ def checkAllForUpdates():
 def updateAll():
     #for each asset reference in outliner
     objects = []
-    for object in cmds.ls(rf = True): #check if object is a reference
-        objects.append(object)
+    for object in cmds.ls(): #check if object is a reference
+        check = cmds.referenceQuery(object, inr = True) #is asset a reference?
+        if(check == 1):
+            objects.append(object)
 
     for object in objects:
         filePath = cmds.referenceQuery(object, f = True)
         updatedAsset = returnLatest(filePath)
-        print(updatedAsset)
         latestPath = returnLatestPath(filePath, updatedAsset)
-        #loadAsset(latestPath, cmds.referenceQuery(object, rfn = True))
+        print(latestPath)
+        loadAsset(latestPath, cmds.referenceQuery(object, rfn = True))
     if cmds.window('alert', exists = True):
         cmds.deleteUI('alert')
         cmds.window('alert', title = "Warning", w = 300, h = 25)
