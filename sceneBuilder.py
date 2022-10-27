@@ -1,7 +1,6 @@
 import os
 import os.path
 import maya.cmds as cmds
-from glob import glob
 
 def loadAsset(newRefPath, currentRefNode):
     cmds.file(newRefPath, loadReference = currentRefNode)
@@ -38,7 +37,6 @@ def isLatest(currentFile, directoryFile): #compare current file version with fil
 def returnLatest(currentFile): #returns name of most updated file
         filePath = cmds.referenceQuery(currentFile, f = True)
         folderPath = os.path.dirname(filePath)
-        print(folderPath)
         filesInDir = os.listdir(folderPath)
         files = getRelevantFiles(filesInDir, filePath) #only get files with asset name in them
         for file in files:
@@ -104,8 +102,13 @@ def checkAllForUpdates():
                 print(getFileName(filePath))
                 updatesAvailable.append(filePath)
 
-    if updatesAvailable.count == 0:
-        print("Up to date!")
+    if not updatesAvailable:
+        if cmds.window('alert', exists = True):
+            cmds.deleteUI('alert')
+        cmds.window('alert', title = "Warning", w = 150, h = 25)
+        info = cmds.columnLayout(co = ('both', 10))
+        cmds.text("Up to date!")
+        cmds.showWindow('alert')
     else:
         if cmds.window('alert', exists = True):
             cmds.deleteUI('alert')
@@ -120,12 +123,21 @@ def checkAllForUpdates():
 def updateAll():
     #for each asset reference in outliner
     objects = []
-    for object in cmds.ls(rf = True):
-        #check if object is a reference
+    for object in cmds.ls(rf = True): #check if object is a reference
         objects.append(object)
-    
-    print(objects)
-    return
+
+    for object in objects:
+        filePath = cmds.referenceQuery(object, f = True)
+        updatedAsset = returnLatest(filePath)
+        print(updatedAsset)
+        latestPath = returnLatestPath(filePath, updatedAsset)
+        #loadAsset(latestPath, cmds.referenceQuery(object, rfn = True))
+    if cmds.window('alert', exists = True):
+        cmds.deleteUI('alert')
+        cmds.window('alert', title = "Warning", w = 300, h = 25)
+        info = cmds.columnLayout(co = ('both', 10))
+        cmds.text("Assets updated.")
+        cmds.showWindow('alert')
 
 def sceneBuilder():
     if cmds.window('sceneBuilder', exists = True):
