@@ -52,38 +52,41 @@ def returnLatestPath(currentFile, latestFile):
 
 def updateSingle():
     objects = []
+    count = []
     for selection in cmds.ls(sl=True): #checking how many objects are selected
-        check = cmds.referenceQuery(selection, inr = True) #is asset a reference?
-        if cmds.ls(sl = True, head = 2):
-            if cmds.window('alert', exists = True):
+        count.append(selection)
+    if len(count) > 1:
+        if cmds.window('alert', exists = True):
                 cmds.deleteUI('alert')
-            cmds.window('alert', title = "Warning", w = 300, h = 25)
-            info = cmds.columnLayout(co = ('both', 10))
-            cmds.text("Please select only one asset.")
-            cmds.showWindow('alert')
-            raise Exception("Please select only one asset.")
-        
-        if(check == 0): #blocks off selecting a non-reference asset
-            if cmds.window('alert', exists = True):
-                cmds.deleteUI('alert')
-            cmds.window('alert', title = "Warning", w = 300, h = 25)
-            info = cmds.columnLayout(co = ('both', 10))
-            cmds.text("Please select a reference asset only.")
-            cmds.showWindow('alert')
-            raise Exception("Please select a reference asset only.") 
+        cmds.window('alert', title = "Warning", w = 300, h = 25)
+        info = cmds.columnLayout(co = ('both', 10))
+        cmds.text("Please select only one asset.")
+        cmds.showWindow('alert')
+        raise Exception("Please select only one asset.")
+    else:
+        objects.append(selection)
+    check = cmds.referenceQuery(objects[0], inr = True) #is asset a reference?
+    if(check == 0): #blocks off selecting a non-reference asset
+        if cmds.window('alert', exists = True):
+            cmds.deleteUI('alert')
+        cmds.window('alert', title = "Warning", w = 300, h = 25)
+        info = cmds.columnLayout(co = ('both', 10))
+        cmds.text("Please select a reference asset only.")
+        cmds.showWindow('alert')
+        raise Exception("Please select a reference asset only.") 
 
-        elif(check == 1):
-            objects.append(selection)
-            filePath = cmds.referenceQuery(objects[0], f = True)
-            updatedAsset = returnLatest(filePath)
-            latestPath = returnLatestPath(filePath, updatedAsset)
-            loadAsset(latestPath, cmds.referenceQuery(objects[0], rfn = True))
-            if cmds.window('alert', exists = True):
-                cmds.deleteUI('alert')
-            cmds.window('alert', title = "Warning", w = 300, h = 25)
-            info = cmds.columnLayout(co = ('both', 10))
-            cmds.text("Asset updated.")
-            cmds.showWindow('alert')
+    elif(check == 1):
+        objects.append(selection)
+        filePath = cmds.referenceQuery(objects[0], f = True)
+        updatedAsset = returnLatest(filePath)
+        latestPath = returnLatestPath(filePath, updatedAsset)
+        loadAsset(latestPath, cmds.referenceQuery(objects[0], rfn = True))
+        if cmds.window('alert', exists = True):
+            cmds.deleteUI('alert')
+        cmds.window('alert', title = "Warning", w = 300, h = 25)
+        info = cmds.columnLayout(co = ('both', 10))
+        cmds.text("Asset updated.")
+        cmds.showWindow('alert')
             
 def checkAllForUpdates():
     objects = []
