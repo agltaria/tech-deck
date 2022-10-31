@@ -1,6 +1,3 @@
-from cgitb import enable, text
-from ensurepip import version
-from operator import truediv
 import maya.cmds as cmds
 import os
 
@@ -32,9 +29,10 @@ textPublish = None
 
 # Variables
 nextVersionNumber = -1
+prevFileName = ''
 
 # An array of each asset type
-assetTypes = ['setPiece', 'set', 'layout', 'prop', 'character', 'sequence']
+assetTypes = ['setPiece', 'set', 'prop', 'character', 'sequence']
 
 # Departments for each asset type (dictionary)
 departmentsPerAsset = { # TODO: Add 'camera' as an asset?
@@ -63,11 +61,10 @@ def ConstructWindowMain():
 
 	# Check for any existing windows or jobs from a previous time this script was run, and destroy those
 	if cmds.window('publishing', exists = True):	# Delete existing UI to avoid double up, and ensure name is unique
-		cmds.deleteUI('publishing')
-	
-	# TODO: Check for previous script jobs and kill them
+		cmds.deleteUI('publishing') # This should also kill any previous script jobs (as they should be children of this window)
 
 	# TODO: Make this window size n' resize better
+
 	# Construct UI of main window
 	cmds.window('publishing', resizeToFitChildren = True, sizeable = False)
 	columnMain = cmds.columnLayout(columnWidth = 250, columnAttach = ['both', 0])
@@ -76,7 +73,7 @@ def ConstructWindowMain():
 	
 	cmds.separator(height=10)
 
-	# UI for parameters to be set by the user (or automatically)
+	# UI for parameters to be set by the user (or programmatically)
 	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 150)])						# File type (asset type)
 	cmds.text(label = 'Asset Type')																# A drop-down with several options: setPiece, set, prop, character, sequence
 	menuType = cmds.optionMenu('menuType', cc = 'RefreshDepartmentsMenu()') 					# Updates GUI appropriately upon changing selection
@@ -115,14 +112,39 @@ def ConstructWindowMain():
 	buttonSavePublished = cmds.button(label = 'Publish', command = 'PublishOpenFile()')		# Create a button that publishes the current open working file
 	textPublish = cmds.text(label = 'Will publish as ...')									# Create dynamic caption
 
+	# TODO: Delete this test UI
+	cmds.button(label = 'Print start/end keys', command = 'GetStartEndFrames()')
+
 	cmds.showWindow('publishing')
 
 	UpdateWindowMain()	# Update main window UI (i.e. greyout/ungreyout relevant options, populate paramaters with info, determine next version number)
 
-	# TODO: Run a script job, that listens for changes made in the scene (checks if maya file has changed since open/save) and greys out 'Publish' button accordingly
-	# The logic to disable/reenable exists and is called, but needs to be called when:
-		# File 'modified?' changes from false to true
-		# The open scene changes, but perhaps not when WE change the scene programmatically
+	# The logic to disable/reenable some UI should be called via a script job when:
+	cmds.scriptJob(event = ['SelectionChanged', UpdateSavePublishTexts], parent = 'publishing')		# ...file 'modified?' changes from false to true (THIS IS A QUESTIONABLE EVENT TO LISTEN TO)
+	cmds.scriptJob(event = ['SceneOpened', UpdateWindowMain], parent = 'publishing')				# ...the open scene changes, but perhaps not when WE change the scene programmatically
+
+	# TODO: Low-prio // A script job that prevents saving via Maya's own 'Save' and "Save as..."
+
+def GetStartEndFrames(): # Returns a list of 2 elements: earliest found frame, and latest found frame. If search inconclusive, returns None.
+	startFrame = 999999999
+	endFrame = -999999999
+	count = 0
+	countHasFrames = 0
+	transforms = cmds.ls(type = 'transform')
+	for transform in transforms:
+		keyframes = cmds.keyframe(transform, q = True, time = (-999999, 999999))
+		if keyframes != None:
+			min_max = sorted(keyframes)
+			if min_max[0] < startFrame:
+				startFrame = min_max[0]
+			if min_max[-1] > endFrame:
+				endFrame = min_max[-1]
+			countHasFrames += 1
+		count += 1
+	#print('Start/End frames: ' + str(startFrame) + ', ' + str(endFrame) + '. Transforms found: ' + str(count) + ' (with keyframes: ' + str(countHasFrames) + ')')
+	if startFrame < 999999999 and endFrame > -999999999:
+		return [ startFrame, endFrame ]
+	return None
 
 def ClearWindowMain():	# Clears all text fields, clears departments drop down menu, and re-enables all drop down menus
 	ClearDepartmentsMenu()
@@ -192,6 +214,7 @@ def GetNameOfDepartment(directory):
 # Update the entire window UI when we open a new file or run this script for the first time, basing values off of the currently open file
 def UpdateWindowMain():
 	global nextVersionNumber
+	global prevFileName
 	directory = GetFilePathAsArray()				# Check directory of open file
 	ClearWindowMain()								# Clear drop down menus before we populate them
 
@@ -213,27 +236,27 @@ def UpdateWindowMain():
 		cmds.textField(fieldName, e = True, text = assetName, enable = False)
 		cmds.textField(fieldVersionNumber, e = True, text = versionNumber, enable = False)
 		if assetType == 'sequence':
-			shotNumber = str(int(GetFileNameAsArray()[1])) # TODO: Maybe fix; this works but relies on implicit cast from string to int (string follows format "name_no")
+			shotNumber = str(int(GetFileNameAsArray()[1])) # TODO: Fix; this works but relies on implicit cast from string to int (string follows format "name_no", will break if name contains no.?)
 			cmds.textField(fieldShotNumber, e = True, text = shotNumber, enable = False)
-		
-		# TODO: Low-prio // Disabling save as button until open file differs from that saved in WIP
 		SetNextVersionNumber()
 
 		# As this is a file that exists within the WIP directory, we disable the drop down menus
 		cmds.optionMenu(menuType, e = True, enable = False)
 		cmds.optionMenu(menuDepartment, e = True, enable = False)
 
-	elif DoesStringArrayContain(directory, 'publish'):
-		print('Update window for publishing')
-		# We should never find ourselves in the publishing directory
-	else:
+		# Enable 'publish' button when appropriate. It's enabled by default, but only re-enabled via code at specific points (without the following, opening a new WIP will not re-enable the button)
+		if GetNameOfSavedFile() != prevFileName:
+			prevFileName = GetNameOfSavedFile()
+			cmds.button(buttonSavePublished, e = True, enable = True)
+	# elif DoesStringArrayContain(directory, 'publish'): # We should never find ourselves in the publishing directory
+	# 	print('Update window for publishing')
+	# 	# TODO: Remove this else/if so that we default to the following, or create a desirable UI behaviour for this situation
+	else:																			# Else, we assume that this is a new file and hence...
 		print('Update window for new/unknown')
-		# Else, we assume that this is a new file and hence...
-			# Populate the main window's UI with default/empty information, and make sure options ARE NOT greyed
-			# Grey out the 'Publish' button, as we cannot publish an unsaved file
-		PopulateDepartmentsMenu(assetTypes[0])
-		cmds.button(buttonSavePublished, e = True, enable = False)
-		cmds.textField(fieldVersionNumber, e = True, text = '1', enable = False)
+		PopulateDepartmentsMenu(assetTypes[0])										# Populate the main window's UI with default/empty information, and make sure options ARE NOT greyed
+		cmds.textField(fieldName, e = True, text = '', enable = True)
+		cmds.textField(fieldVersionNumber, e = True, text = '0', enable = False)
+		cmds.button(buttonSavePublished, e = True, enable = False)					# Grey out the 'Publish' button, as we cannot publish an unsaved file
 
 		# Set version number to 1
 		nextVersionNumber = 1
@@ -250,7 +273,7 @@ def UpdateSavePublishTexts():
 		IsShotNumberValid(cmds.textField(fieldShotNumber, q = True, text = True))
 	if isNameValid and (not isSequence or (isSequence and isShotNumberValid)):
 		if (isModified):
-			cmds.text(textSave, e = True, label = 'Will save as ' + GetNameOfSavedFile())
+			cmds.text(textSave, e = True, label = 'Will save as ' + GetNameOfSavedFile() + '.mb')
 			cmds.button(buttonSaveWIP, e = True, enable = True)
 		else:
 			cmds.text(textSave, e = True, label = 'Cannot save if no changes have been made')
@@ -380,17 +403,9 @@ def GetNameOfSavedFile():
 		while zeroesToAdd > 0:
 			shotNumber = '0' + shotNumber
 			zeroesToAdd -= 1
-		return name + '_' + shotNumber + '_' + department + '.v' + versionNumber + '.mb'
+		return name + '_' + shotNumber + '_' + department + '.v' + versionNumber
 	else:
-		return name + '_' + department + '.v' + versionNumber + '.mb'
-
-	# FILE NAMING/SAVING SCHEME:
-	#     /wip/assets/[type]/name/[subType]       				/[name]_[subType]_v[versionNumber].mb
-	# /publish/assets/[type]/name/[subType]/source              /[name]_[subType]_v[versionNumber].mb
-	# /publish/assets/[type]/name/[subType]/cache				/[name]_[subType]_v[versionNumber].mb
-	#     /wip/sequence/[name]/[name]_[shotNo]/[subType]       	/[name]_[shotNo]_[subType]_v[versionNumber].mb
-	# /publish/sequence/[name]/[name]_[shotNo]/[subType]/source	/[name]_[shotNo]_[subType]_v[versionNumber].???
-	# /publish/sequence/[name]/[name]_[shotNo]/[subType]/cache	/[name]_[shotNo]_[subType]_v[versionNumber].???
+		return name + '_' + department + '.v' + versionNumber
 
 def GetPathOfSavedFile():
 	name = cmds.textField(fieldName, q = True, text = True)
@@ -408,54 +423,75 @@ def GetPathOfSavedFile():
 		return 'assets/' + assetType + '/' + name + '/' + department
 
 def SaveOpenFile():
-	# TODO: We must verify that there is only 1 group transform node in the hierarchy
-	# TODO: Verify that the above is true, else create a pop-up explaining the issue and return out of this function
+	# Cannot publish if there isn't a single parent node
+	if not IsThereASingleRootObject():
+		cmds.confirmDialog( title='Invalid Scene', message='There is more than one group node at the root of your scene hierarchy. You must group all nodes before you can save.',
+		button=['Okay'], defaultButton='Okay', cancelButton='Okay', dismissString='Okay')
+		return
 
-	newFilePath = GetDirectoryOfWIP() + '/' + GetPathOfSavedFile() + '/' + GetNameOfSavedFile()		# Use known information to concatenate relevant directory
+	newFilePath = GetDirectoryOfWIP() + '/' + GetPathOfSavedFile() + '/' + GetNameOfSavedFile() + '.mb'		# Use known information to concatenate relevant directory
 
-	CreateDirectoryIfNotExist(GetDirectoryOfWIP() + '/' + GetPathOfSavedFile()) 					# Check destination exists, else create a directory for the path specified
+	CreateDirectoryIfNotExist(GetDirectoryOfWIP() + '/' + GetPathOfSavedFile()) 							# Check destination exists, else create a directory for the path specified
    
-	cmds.file(rename = newFilePath)																	# Save new version into the specified WIP directory
+	cmds.file(rename = newFilePath)																			# Save new version into the specified WIP directory
 	cmds.file(save = True, force = True, type = 'mayaBinary')
+
+	cmds.button(buttonSavePublished, e = True, enable = True)												# Re-enable the publish button
 	
 	UpdateWindowMain() # Update main window UI (i.e. greyout/ungreyout relevant options, populate paramaters with info, determine next version number)
 
 def PublishOpenFile():
-	print('PublishOpenFile()')
-	# TODO: Create a pop-up stating that the open WIP has already been published if that is the case, then return (or disable the publish button sooner)
+	proceedOption = ''
+	# Cannot publish if there isn't a single parent node (we should be able to assume that this wil never be true, however)
+	if not IsThereASingleRootObject():
+		cmds.confirmDialog( title='Invalid Scene', message='There is more than one group node at the root of your scene hierarchy. You must group all nodes before you can publish.',
+		button=['Okay'], defaultButton='Okay', cancelButton='Okay', dismissString='Okay')
+		return
+	
+	# reate a pop-up stating that the open WIP has already been published if that is the case, then return
+	if IsThisSceneAlreadyPublished():
+		proceedOption = cmds.confirmDialog( title='Already Published', message='Published files already exist for this version. There is no need to publish again.',
+		button=['Okay','Publish anyway'], defaultButton='Okay', cancelButton='Okay', dismissString='Okay')
+		if proceedOption == 'Okay':
+			return
 
-	# Cannot publish if the open file is not already saved, or if changes have been made since opening/saving the open file
-	# Verify that the above is true, else create a pop-up explaining the issue and return out of this function
-
-	# TODO: Cannot publish if there isn't a single parent node? Already done in WIP? Can we assume this is true?
-
-	# TODO: We want publish to be greyed out if changes are made, but enabled if open file matches saved WIP (this still accurate?)
-	# TODO: We want publish to create a pop-up on click: stating if succeeded, or if this WIP already has a published version
+	# TODO: A pop-up explaining that publish is in progress?
 
 	# fileCheckState = mc.file(q=True, modified=True) # To check if any changes have been made since save # TODO: Implement dynamically disabled publish button
-
-	# Use known information to save new version into the published directory (TODO: this IS NOT fine if directory doesn't already exist?)
-		# /publish/assets/[type]/[subType]/source/[name]_[subType]_v[versionNumber].mb
-		# /publish/sequence/[name]/[name]_[shotNo]/[subType]/source/[name]_[shotNo]_[subType]_v[versionNumber].???
-	# Based on known information, also export alternate file types into cache folder
-		# /publish/assets/[type]/[subType]/cache/[name]_[subType]_v[versionNumber].mb
-		# /publish/sequence/[name]/[name]_[shotNo]/[subType]/cache/[name]_[shotNo]_[subType]_v[versionNumber].???
 	
-	currentFilePath = cmds.file(q = True, sn = True)
-	newFilePath = GetDirectoryOfPublish() + '/' + GetPathOfSavedFile() + '/'						# Use known information to concatenate relevant directory
-	newFileName = GetNameOfSavedFile()[0:-4] # TODO: Test
+	newFilePath = GetDirectoryOfPublish() + '/' + GetPathOfSavedFile() + '/'	# Use known information to concatenate relevant directory
+	newFileName = GetNameOfSavedFile()
 
+	# Create directories if they do not yet exist
 	CreateDirectoryIfNotExist(newFilePath + 'source')
 	CreateDirectoryIfNotExist(newFilePath + 'cache')
+	CreateDirectoryIfNotExist(newFilePath + 'cache/fbx')
+	CreateDirectoryIfNotExist(newFilePath + 'cache/abc')
+	CreateDirectoryIfNotExist(newFilePath + 'cache/obj')	# We don't currently publish anything into this folder
+	CreateDirectoryIfNotExist(newFilePath + 'cache/usd')	# We don't currently publish anything into this folder
    
-	# TODO: Save all files into published folders 'source' and 'cache'
-	# TODO: Create a dictionary for cached file types (we need logic to differentiate between file/asset types and publish accordingly (.abc, .fbx))
-	# TODO: Call functionality in Ethan's script to publish material cache, passing in the correct version to file names and version property in the .JSON
-	cmds.file(rename = newFilePath)																	# Save new version into the specified WIP directory
-	cmds.file(save = True, force = True, type = 'mayaBinary') # These 2 lines are copy pasted from Save WIP, but are not appropriate
+	# Save all files into published folders 'source' and 'cache'
+	cmds.file((newFilePath + 'source/' + newFileName + '.mb'), force = True, options = 'v=0', type = 'mayaBinary', preserveReferences = True, exportAll = True)			# Save .mb
+	startEndFrames = GetStartEndFrames()
+	if startEndFrames != None:
+		cmds.AbcExport(j = '-frameRange ' + str(int(startEndFrames[0])) + ' ' + str(int(startEndFrames[1])) 
+			+ ' -dataFormat ogawa -file ' + newFilePath + 'cache/abc/' + newFileName + '.abc')																			# Save .abc
+	cmds.file((newFilePath + 'cache/fbx/' + newFileName + '.fbx'), force = True, options = 'v=0', type = 'FBX export', preserveReferences = True, exportAll = True)		# Save .fbx
+	
+	# TODO: Low-prio // FBX export (?) throws warnings in a warnings window after publishing
 
-	# TODO: Use currentFilePath to reopen original WIP, if we ever changed the currently open file
-	# TODO: Disable publish button, cannot publish if this WIP version has already been (OLD: version up wip file, to avoid publishing over the file we just published)
+	# TODO: Call functionality in Ethan's script to publish material cache, passing in the correct version to file names and version property in the .JSON
+
+	# cmds.button(buttonSavePublished, e = True, enable = False) # Need this? Need to increment next version record? We doing a pop-up instead?
+	UpdateWindowMain()
+
+def IsThisSceneAlreadyPublished():
+	# TODO: Add logic
+	return False
+
+def IsThereASingleRootObject():
+	# TODO: Add logic
+	return True
 
 def CreateDirectoryIfNotExist(directory): # Check destination exists, and create a directory for the path specified if doesn't
 	isExist = os.path.exists(directory)
@@ -480,8 +516,16 @@ def DoesStringArrayContain(stringArray, string):
 
 	return False
 
-# When this script is run (from shelf), construct the main window
-ConstructWindowMain()
+ConstructWindowMain() # When this script is run (from shelf), construct the main window
+
+# FILE NAMING/SAVING SCHEME ##########################################################################################################################
+
+#     /wip/assets/[type]/name/[subType]       				/[name]_[subType]_v[versionNumber].mb
+# /publish/assets/[type]/name/[subType]/source              /[name]_[subType]_v[versionNumber].mb
+# /publish/assets/[type]/name/[subType]/cache				/[name]_[subType]_v[versionNumber].mb
+#     /wip/sequence/[name]/[name]_[shotNo]/[subType]       	/[name]_[shotNo]_[subType]_v[versionNumber].mb
+# /publish/sequence/[name]/[name]_[shotNo]/[subType]/source	/[name]_[shotNo]_[subType]_v[versionNumber].???
+# /publish/sequence/[name]/[name]_[shotNo]/[subType]/cache	/[name]_[shotNo]_[subType]_v[versionNumber].???
 
 # SNIPPETS ###########################################################################################################################################
 
@@ -504,6 +548,13 @@ ConstructWindowMain()
 
 # cmds.file( rename=name  )
 # cmds.file( save=True, type='mayaAscii' )
+
+# AbcExport -j "-frameRange 1 20 -dataFormat ogawa -file C:/Users/edwar/Downloads/Assessment2_GroupX/cache/alembic/publishABC.abc";
+# file -force -options "v=0;" -type "FBX export" -pr -ea "C:/Users/edwar/Downloads/Assessment2_GroupX/assets/chairTest.fbx";
+# file -force -options ""     -type "FBX export" -pr -ea "C:/Users/edwar/Downloads/Assessment2_GroupX/assets/chairTest.fbx"; # This one
+# file -force -options "v=0;" -typ "FBX export" -pr -es "C:/Users/edwar/Downloads/Assessment2_GroupX/assets/test.fbx";
+# file -force -options "v=0;" -type "mayaBinary" -pr -ea "C:/Users/edwar/Downloads/Assessment2_GroupX/assets/publishMB.mb";
+# file -force -options "v=0;" -type "FBX export" -pr -ea "C:/Users/edwar/Downloads/Assessment2_GroupX/assets/publishFBX.fbx";
 
 # SCRAPPED ###########################################################################################################################################
 
@@ -546,11 +597,11 @@ ConstructWindowMain()
 		# Identify that reference's directory in publish
 		# Determine if their are higher versioned versions of that asset
 		# Ask user whether to change reference to newer version, or allow user to manually select a different version
+
 # def IsOpenFileWIP():
 # 	for name in reversed(GetFilePathAsArray()):
 # 		if name == 'wip':
 # 			return True
-
 # 	return False
 
 # Iteratively step up through the directory to identify the currently open file's type, sub-type and name
