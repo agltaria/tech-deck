@@ -28,11 +28,14 @@ textSave = None
 textPublish = None
 
 # Variables
-nextVersionNumber = -1
-prevFileName = ''
+nextVersionNumber = -1 # A record of what the next saved version should be, generally 1 more than the hightest version in that folder
+prevFileName = '' # A record, used when refreshing the UI to determine if the file has changed or not
 
 # An array of each asset type
 assetTypes = ['setPiece', 'set', 'prop', 'character', 'sequence']
+
+# Reserved names that files 'names' cannot match
+reservedNames = ['wip', 'publish', 'assets', 'sequence', 'source', 'cache']
 
 # Departments for each asset type (dictionary)
 departmentsPerAsset = { # TODO: Add 'camera' as an asset?
@@ -45,7 +48,7 @@ departmentsPerAsset = { # TODO: Add 'camera' as an asset?
 }
 
 def ConstructWindowMain():
-	global columnMain # TODO: Check if these global declarations are neccessary?
+	global columnMain
 	global buttonOpenWIP
 	global buttonSaveWIP
 	global buttonSavePublished
@@ -60,32 +63,38 @@ def ConstructWindowMain():
 	global textPublish
 
 	# Check for any existing windows or jobs from a previous time this script was run, and destroy those
-	if cmds.window('publishing', exists = True):	# Delete existing UI to avoid double up, and ensure name is unique
+	if cmds.window('publishing', q = True, exists = True):	# Delete existing UI to avoid double up, and ensure name is unique
 		cmds.deleteUI('publishing') # This should also kill any previous script jobs (as they should be children of this window)
 
-	# TODO: Make this window size n' resize better
-
 	# Construct UI of main window
-	cmds.window('publishing', resizeToFitChildren = True, sizeable = False)
-	columnMain = cmds.columnLayout(columnWidth = 250, columnAttach = ['both', 0])
+	cmds.window('publishing', title = 'Publish Tool', resizeToFitChildren = True, sizeable = False)
+	columnMain = cmds.columnLayout(columnWidth = 300, columnAttach = ['both', 10])
+
+	cmds.rowLayout(height = 20)
+	cmds.setParent(columnMain)
+	cmds.text(label = 'This tool saves correctly named/versioned')
+	cmds.text(label = 'files into the project\'s WIP and Publish')
+	cmds.text(label = 'directories, and lets you open WIP files')
+	cmds.rowLayout(height = 20)
+	cmds.setParent(columnMain)
 
 	buttonOpenWIP = cmds.button(label = 'Open WIP', command = 'OpenWorkingFile()')			# Create a button to open a WIP from the project
 	
 	cmds.separator(height=10)
 
 	# UI for parameters to be set by the user (or programmatically)
-	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 150)])						# File type (asset type)
+	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 180)])						# File type (asset type)
 	cmds.text(label = 'Asset Type')																# A drop-down with several options: setPiece, set, prop, character, sequence
 	menuType = cmds.optionMenu('menuType', cc = 'RefreshDepartmentsMenu()') 					# Updates GUI appropriately upon changing selection
 	PopulateAssetTypesMenu()
 	cmds.setParent(columnMain)
 
-	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 150)])						# File sub-type (department)
+	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 180)])						# File sub-type (department)
 	cmds.text(label = 'Department')																# A drop-down with several options that vary based on the previous drop-down:
 	menuDepartment = cmds.optionMenu('menuDepartment', cc = 'UpdateSavePublishTexts()')			# Assets: model, surfacing, rig, animation # SURFACING SCENES MAY NEED TO WORK WITH ETHAN'S CODE
 	cmds.setParent(columnMain)																	# Sequence: layout, light, animation
 				
-	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 150)])						# File name	
+	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 180)])						# File name	
 	cmds.text(label = 'Name')
 	fieldName = cmds.textField(changeCommand = 'UpdateSavePublishTexts()')
 	cmds.setParent(columnMain)
@@ -97,7 +106,7 @@ def ConstructWindowMain():
 
 	cmds.separator(height=10)
 
-	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 150)])						# Version number (greyed out by default)
+	cmds.rowLayout(numberOfColumns=2, columnWidth=[(1, 100), (2, 180)])						# Version number (greyed out by default)
 	cmds.text(label = 'Version No.')
 	fieldVersionNumber = cmds.textField()
 	cmds.setParent(columnMain)
@@ -112,8 +121,7 @@ def ConstructWindowMain():
 	buttonSavePublished = cmds.button(label = 'Publish', command = 'PublishOpenFile()')		# Create a button that publishes the current open working file
 	textPublish = cmds.text(label = 'Will publish as ...')									# Create dynamic caption
 
-	# TODO: Delete this test UI
-	cmds.button(label = 'Print start/end keys', command = 'GetStartEndFrames()')
+	cmds.rowLayout(height = 15)
 
 	cmds.showWindow('publishing')
 
@@ -121,9 +129,13 @@ def ConstructWindowMain():
 
 	# The logic to disable/reenable some UI should be called via a script job when:
 	cmds.scriptJob(event = ['SelectionChanged', UpdateSavePublishTexts], parent = 'publishing')		# ...file 'modified?' changes from false to true (THIS IS A QUESTIONABLE EVENT TO LISTEN TO)
-	cmds.scriptJob(event = ['SceneOpened', UpdateWindowMain], parent = 'publishing')				# ...the open scene changes, but perhaps not when WE change the scene programmatically
+	cmds.scriptJob(event = ['SceneOpened', HandleNewSceneOpened], parent = 'publishing')				# ...the open scene changes, but perhaps not when WE change the scene programmatically
 
-	# TODO: Low-prio // A script job that prevents saving via Maya's own 'Save' and "Save as..."
+	# TODO: Is there some way for this tool to prevent saving via Maya's own 'Save' and "Save as..."?
+
+def HandleNewSceneOpened():
+	prevFileName = '' # If we didn't reset this and user was to reopen the same file, tool would no realise a file had been newly opened
+	UpdateWindowMain()
 
 def GetStartEndFrames(): # Returns a list of 2 elements: earliest found frame, and latest found frame. If search inconclusive, returns None.
 	startFrame = 999999999
@@ -152,8 +164,6 @@ def ClearWindowMain():	# Clears all text fields, clears departments drop down me
 	cmds.optionMenu(menuDepartment, e = True, enable = True)
 	cmds.rowLayout(rowShotNumber, e = True, )
 
-	# TODO: Clear text fields, re-enable text fields
-
 def PopulateAssetTypesMenu():
 	cmds.setParent(menuType, menu = True)
 	for assetType in assetTypes:															# For each department specified for the asset type...
@@ -177,7 +187,6 @@ def PopulateDepartmentsMenu(nameOfAssetType):
 	UpdateSavePublishTexts()
 
 def RefreshDepartmentsMenu():
-	print('RefreshDepartmentsMenu')
 	cmds.optionMenu(menuDepartment, e = True, enable = True)
 	ClearDepartmentsMenu()
 	assetType = assetTypes[cmds.optionMenu(menuType, q = True, select = True) - 1] # Fetch the name of the asset type currently selected in the asset type drop down menu
@@ -187,7 +196,6 @@ def ClearDepartmentsMenu():
 	global labelShotNumber
 	global fieldShotNumber
 
-	print('ClearDepartmentsMenu')
 	for element in menuOptionsDepartment:
 		cmds.deleteUI(element)
 	menuOptionsDepartment.clear()
@@ -218,16 +226,19 @@ def UpdateWindowMain():
 	directory = GetFilePathAsArray()				# Check directory of open file
 	ClearWindowMain()								# Clear drop down menus before we populate them
 
-	# TODO: Low-prio // The following conditional is flawed, as it assumes a file recorded as existing in WIP still actually exists (pretty obscure, though)
-	if DoesStringArrayContain(directory, 'wip'):	# Grey out and populate certain elements based on if this file exists in the WIP directory or not
-		print('Update window for WIP')
+	# TODO: The following conditional is flawed, as it assumes a file recorded as existing in WIP when opened hasn't been since deleted (pretty obscure, though)
+	if DoesStringArrayContain(directory, 'wip'): # Grey out and populate certain elements based on if this file exists in the WIP directory or not
 		assetType = GetNameOfAssetType(directory)
-		PopulateDepartmentsMenu(assetType)												# Select the given asset in the assets drop down menu, and configure departments menu
 		departmentName = GetNameOfDepartment(directory)
-		departmentIndex = departmentsPerAsset[assetType].index(departmentName) + 1 # TODO: It's 'anim', not 'animation'. Check if both should be permitted, else change to 'anim'.
-		cmds.optionMenu(menuDepartment, e = True, select = departmentIndex) 			# Select the given department in the departments drop down menu
+
+		# Detect and handle if the above fails - it would mean that there is something wrong with the project structure and/or the opened file wasn't created by this tool
+		if assetType == 'invalid' or departmentName == 'invalid': # TODO: Files within a correctly formatted path - that does NOT match that files name - will not save into that path
+			UpdateWindowMainForNew()
+			return
 		
-		# TODO: Detect and handle if the above fails? It would mean that there is something wrong with the project structure.
+		PopulateDepartmentsMenu(assetType)												# Select the given asset in the assets drop down menu, and configure departments menu
+		departmentIndex = departmentsPerAsset[assetType].index(departmentName) + 1		# Note that characters use 'anim', but sequences use 'animation'
+		cmds.optionMenu(menuDepartment, e = True, select = departmentIndex) 			# Select the given department in the departments drop down menu
 
 		# Get file name, and from it: last X characters "*.vXXX.mb" for version number, asset name from file name -- write these to textfields, disable those textfields
 		fileName = directory[-1]
@@ -236,7 +247,7 @@ def UpdateWindowMain():
 		cmds.textField(fieldName, e = True, text = assetName, enable = False)
 		cmds.textField(fieldVersionNumber, e = True, text = versionNumber, enable = False)
 		if assetType == 'sequence':
-			shotNumber = str(int(GetFileNameAsArray()[1])) # TODO: Fix; this works but relies on implicit cast from string to int (string follows format "name_no", will break if name contains no.?)
+			shotNumber = str(int(GetFileNameAsArray()[1]))
 			cmds.textField(fieldShotNumber, e = True, text = shotNumber, enable = False)
 		SetNextVersionNumber()
 
@@ -245,32 +256,41 @@ def UpdateWindowMain():
 		cmds.optionMenu(menuDepartment, e = True, enable = False)
 
 		# Enable 'publish' button when appropriate. It's enabled by default, but only re-enabled via code at specific points (without the following, opening a new WIP will not re-enable the button)
-		if GetNameOfSavedFile() != prevFileName:
-			prevFileName = GetNameOfSavedFile()
+		if GetNameOfSavedFile(False) != prevFileName:
+			prevFileName = GetNameOfSavedFile(False)
 			cmds.button(buttonSavePublished, e = True, enable = True)
-	# elif DoesStringArrayContain(directory, 'publish'): # We should never find ourselves in the publishing directory
-	# 	print('Update window for publishing')
-	# 	# TODO: Remove this else/if so that we default to the following, or create a desirable UI behaviour for this situation
-	else:																			# Else, we assume that this is a new file and hence...
-		print('Update window for new/unknown')
-		PopulateDepartmentsMenu(assetTypes[0])										# Populate the main window's UI with default/empty information, and make sure options ARE NOT greyed
-		cmds.textField(fieldName, e = True, text = '', enable = True)
-		cmds.textField(fieldVersionNumber, e = True, text = '0', enable = False)
-		cmds.button(buttonSavePublished, e = True, enable = False)					# Grey out the 'Publish' button, as we cannot publish an unsaved file
-
-		# Set version number to 1
-		nextVersionNumber = 1
+	elif DoesStringArrayContain(directory, 'publish'): # We should never find ourselves in the publishing directory
+		UpdateWindowMainForNew()
+		cmds.confirmDialog( title='Opened a published file',
+		message='The currently open file is a published version. Published versions shouldn\'t be modified, so this tool will treat this file as an unrecognised/new scene.',
+		button=['Okay'], defaultButton='Okay', cancelButton='Okay', dismissString='Okay')
+	else: # Else, we assume that this is a new file and hence...
+		UpdateWindowMainForNew()
 
 	UpdateSavePublishTexts()
+
+def UpdateWindowMainForNew():
+	global nextVersionNumber
+	global prevFileName
+	directory = GetFilePathAsArray()											# Check directory of open file
+	
+	PopulateDepartmentsMenu(assetTypes[0])										# Populate the main window's UI with default/empty information, and make sure options ARE NOT greyed
+	cmds.textField(fieldName, e = True, text = '', enable = True)
+	cmds.textField(fieldVersionNumber, e = True, text = '0', enable = False)
+
+	# Set version number to 1
+	nextVersionNumber = 1
 
 def UpdateSavePublishTexts():
 	# Update caption beneath save button
 	isModified = cmds.file(q = True, modified = True)
+	# if (GetNameOfSavedFile(False) != prevFileName):
+	# 	isModified = False
 	isNameValid = IsNameValid(cmds.textField(fieldName, q = True, text = True))
-	isSequence = GetFileNameAsArray()[0] == 'sequence'
+	isSequence = assetTypes[cmds.optionMenu(menuType, q = True, select = True) - 1] == 'sequence' #GetFileNameAsArray()[0] == 'sequence'
 	isShotNumberValid = False
 	if isSequence:
-		IsShotNumberValid(cmds.textField(fieldShotNumber, q = True, text = True))
+		isShotNumberValid = IsShotNumberValid(cmds.textField(fieldShotNumber, q = True, text = True))
 	if isNameValid and (not isSequence or (isSequence and isShotNumberValid)):
 		if (isModified):
 			cmds.text(textSave, e = True, label = 'Will save as ' + GetNameOfSavedFile() + '.mb')
@@ -279,28 +299,53 @@ def UpdateSavePublishTexts():
 			cmds.text(textSave, e = True, label = 'Cannot save if no changes have been made')
 			cmds.button(buttonSaveWIP, e = True, enable = False)
 	else:
-		cmds.text(textSave, e = True, label = 'Cannot save until a valid name is specified') # TODO: Check this, I guess: Save disabled when new but invalid or when existing but unmodified.
+		cmds.text(textSave, e = True, label = 'Cannot save until a valid name is specified')
 		cmds.button(buttonSaveWIP, e = True, enable = False)
 
 	# Update caption beneath publish button
 	isPublishEnabled = cmds.button(buttonSavePublished, q = True, enable = True) # Important, ensures publish remains disabled until a new/unknown asset is first saved
-	if isModified or not isPublishEnabled:
+	isFileNew = len(cmds.textField(fieldVersionNumber, q = True, text = True)) <= 0
+	if not isFileNew:
+		isFileNew = int(cmds.textField(fieldVersionNumber, q = True, text = True)) <= 0
+	if (isModified or isFileNew):#or not isPublishEnabled):
 		cmds.text(textPublish, e = True, label = 'Cannot publish until changes are saved')
 		cmds.button(buttonSavePublished, e = True, enable = False)
 	else:
 		cmds.text(textPublish, e = True, label = 'Will publish as ' + GetFilePathAsArray()[-1])
 		cmds.button(buttonSavePublished, e = True, enable = True)
 
-# TODO: Low-prio // A function that translates Title Case to camelCase, and vice versa (and displays any shortened words at their full length)
+# TODO: A function that translates Title Case to camelCase, and vice versa (and displays any shortened words, such as 'anim', at their full length)
 
 def IsNameValid(name):
-	# TODO: Blacklist certain words for file names? Naming files certain things like 'publish', 'wip' or 'set' will break certain logic.
-	# TODO: Add valid conditions
-	return len(name) > 0
+	if len(name) <= 0:							# Name cannot be empty
+		return False
+
+	if '_' in name:								# Name cannot contain an underscore
+		return False
+	
+	for illegalName in reservedNames:			# Name cannot match any reserved names
+		if name == illegalName:
+			return False
+
+	for illegalName in assetTypes:				# Name cannot match any asset types
+		if name == illegalName:
+			return False
+
+	for illegalNames in departmentsPerAsset:	# Name cannot match any department names
+		for illegalName in illegalNames:
+			if name == illegalName:
+				return False
+	
+	return True
 
 def IsShotNumberValid(shotNumber):
-	# TODO: Add valid conditions
-	return len(shotNumber) > 0
+	if len(shotNumber) <= 0:					# Shot number cannot be empty
+		return False
+
+	if not shotNumber.isnumeric():				# Shot number must only contain numbers
+		return False
+	
+	return True
 
 def SetNextVersionNumber():
 	global nextVersionNumber
@@ -317,8 +362,7 @@ def OpenWorkingFile():
 		# If user closes this window instead of selecting a valid file, return out of this function
 		# If user selects an invalid file (e.g. outside of the WIP directory or not .mb) create a pop-up explaining the issue and return out of this function
 
-	# TODO: Low-prio // Figure out how to get around the 'file has same name' warning this browser produces despite the fact it in no way overwrites any files
-	filePath = cmds.fileDialog2(caption = 'Open WIP', fileFilter = '*.mb', fileMode = 0, startingDirectory = GetDirectoryOfWIP())
+	filePath = cmds.fileDialog2(caption = 'Open WIP', fileFilter = '*.mb', fileMode = 1, startingDirectory = GetDirectoryOfWIP())
 
 	if filePath == None:
 		return
@@ -326,7 +370,6 @@ def OpenWorkingFile():
 	filePathArray = GetFilePathAsArray(filePath[0])
 
 	if not DoesStringArrayContain(filePathArray, 'wip'):
-		# TODO: Low-prio // Allow the user to select external files, however this tool may react to that in an unintuitive way
 		cmds.confirmDialog( title='Invalid File', message='The file you selected is not in the project\'s WIP directory. Please select a valid file.',
 		button=['Okay'], defaultButton='Okay', cancelButton='Okay', dismissString='Okay')
 		return
@@ -344,9 +387,10 @@ def OpenWorkingFile():
 		return
 
 	if proceedOption == 'Open highest version':
-		filePath = GetHighestVersionInFolder(fileDirectory) #, filePathArray[-1]) # TODO: Check we don't need this 2nd argument?
+		filePath = GetHighestVersionInFolder(fileDirectory)
 
 	cmds.file(filePath, open = True, force = True)		# Open the selected Maya binary file
+	prevFileName = ''									# If we didn't reset this and user was to reopen the same file, tool would no realise a file had been newly opened
 	UpdateWindowMain()									# Update main window UI (i.e. greyout/ungreyout options, populate paramaters, determine next version number)
 
 def IsFileHighestVersionInFolder(folderDirectory, fileName):
@@ -375,7 +419,7 @@ def GetHighestVersionInFolder(folderDirectory): # Some duplicate code, could lik
 			if otherVersion > fileVersion:
 				fileVersion = otherVersion
 				foundFileName = otherName
-	print(folderDirectory + '/' + foundFileName)
+	#print(folderDirectory + '/' + foundFileName)
 	return folderDirectory + '/' + foundFileName
 
 def GetDirectoryOfWIP():
@@ -386,9 +430,11 @@ def GetDirectoryOfPublish():
 	rootDirectory = str(cmds.workspace(q = True, rd = True))
 	return rootDirectory + 'scenes/publish'
 
-def GetNameOfSavedFile():
+def GetNameOfSavedFile(useNextVersionNumber = True):
 	name = cmds.textField(fieldName, q = True, text = True)
-	versionNumber = str(int(nextVersionNumber)) #cmds.textField(versionNumber, q = True, text = True)))
+	versionNumber = str(int(nextVersionNumber))
+	if not useNextVersionNumber:
+		versionNumber = cmds.textField(fieldVersionNumber, q = True, text = True) # We want the OPEN FILE's version when publishing, not the NEXT version number
 	assetType = assetTypes[cmds.optionMenu(menuType, q = True, select = True) - 1]
 	department = departmentsPerAsset[assetType][cmds.optionMenu(menuDepartment, q = True, select = True) - 1]
 
@@ -423,11 +469,12 @@ def GetPathOfSavedFile():
 		return 'assets/' + assetType + '/' + name + '/' + department
 
 def SaveOpenFile():
-	# Cannot publish if there isn't a single parent node
+	# Should not save if there isn't a single parent node
 	if not IsThereASingleRootObject():
-		cmds.confirmDialog( title='Invalid Scene', message='There is more than one group node at the root of your scene hierarchy. You must group all nodes before you can save.',
-		button=['Okay'], defaultButton='Okay', cancelButton='Okay', dismissString='Okay')
-		return
+		response = cmds.confirmDialog( title='Invalid Scene', message='There is more than one root node (containing geometry) in your scene hierarchy. Are you sure you want to save?',
+		button=['Yes', 'No'], defaultButton='No', cancelButton='No', dismissString='No')
+		if response != 'Yes':
+			return
 
 	newFilePath = GetDirectoryOfWIP() + '/' + GetPathOfSavedFile() + '/' + GetNameOfSavedFile() + '.mb'		# Use known information to concatenate relevant directory
 
@@ -442,25 +489,30 @@ def SaveOpenFile():
 
 def PublishOpenFile():
 	proceedOption = ''
-	# Cannot publish if there isn't a single parent node (we should be able to assume that this wil never be true, however)
+	# Should not publish if there isn't a single parent node (we should be able to assume that this wil never be true, however)
 	if not IsThereASingleRootObject():
-		cmds.confirmDialog( title='Invalid Scene', message='There is more than one group node at the root of your scene hierarchy. You must group all nodes before you can publish.',
-		button=['Okay'], defaultButton='Okay', cancelButton='Okay', dismissString='Okay')
-		return
+		response = cmds.confirmDialog( title='Invalid Scene', message='There is more than one root node (containing geometry) in your scene hierarchy. Are you sure you want to publish?',
+		button=['Yes', 'No'], defaultButton='No', cancelButton='No', dismissString='No')
+		if response != 'Yes':
+			return
 	
-	# reate a pop-up stating that the open WIP has already been published if that is the case, then return
+	# Create a pop-up stating that the open WIP has already been published if that is the case, then return
 	if IsThisSceneAlreadyPublished():
 		proceedOption = cmds.confirmDialog( title='Already Published', message='Published files already exist for this version. There is no need to publish again.',
 		button=['Okay','Publish anyway'], defaultButton='Okay', cancelButton='Okay', dismissString='Okay')
 		if proceedOption == 'Okay':
 			return
 
-	# TODO: A pop-up explaining that publish is in progress?
+	startEndFrames = GetStartEndFrames() # Putting this here before progress pop-up, so that we can tell user what files are being cached
+	generatedFilesText = '.mb, .fbx'
+	if startEndFrames != None:
+		generatedFilesText += ', .abc'
+	CreateProgressWindow('Publish in progress...', generatedFilesText)
 
-	# fileCheckState = mc.file(q=True, modified=True) # To check if any changes have been made since save # TODO: Implement dynamically disabled publish button
+	# TODO: Implement a dynamically disabled publish button, rather than a pop-up warning
 	
 	newFilePath = GetDirectoryOfPublish() + '/' + GetPathOfSavedFile() + '/'	# Use known information to concatenate relevant directory
-	newFileName = GetNameOfSavedFile()
+	newFileName = GetNameOfSavedFile(False)
 
 	# Create directories if they do not yet exist
 	CreateDirectoryIfNotExist(newFilePath + 'source')
@@ -472,25 +524,49 @@ def PublishOpenFile():
    
 	# Save all files into published folders 'source' and 'cache'
 	cmds.file((newFilePath + 'source/' + newFileName + '.mb'), force = True, options = 'v=0', type = 'mayaBinary', preserveReferences = True, exportAll = True)			# Save .mb
-	startEndFrames = GetStartEndFrames()
 	if startEndFrames != None:
 		cmds.AbcExport(j = '-frameRange ' + str(int(startEndFrames[0])) + ' ' + str(int(startEndFrames[1])) 
 			+ ' -dataFormat ogawa -file ' + newFilePath + 'cache/abc/' + newFileName + '.abc')																			# Save .abc
 	cmds.file((newFilePath + 'cache/fbx/' + newFileName + '.fbx'), force = True, options = 'v=0', type = 'FBX export', preserveReferences = True, exportAll = True)		# Save .fbx
-	
-	# TODO: Low-prio // FBX export (?) throws warnings in a warnings window after publishing
 
 	# TODO: Call functionality in Ethan's script to publish material cache, passing in the correct version to file names and version property in the .JSON
 
-	# cmds.button(buttonSavePublished, e = True, enable = False) # Need this? Need to increment next version record? We doing a pop-up instead?
+	DestroyProgressWindow()
 	UpdateWindowMain()
 
+def CreateProgressWindow(message, message2):
+	if cmds.window('progress', q = True, exists = True):
+		cmds.deleteUI('progress')
+	cmds.window('progress', resizeToFitChildren = True, sizeable = False)
+	newColumn = cmds.columnLayout(columnWidth = 150, columnAttach = ['both', 0])
+	cmds.rowLayout(height = 15)
+	cmds.setParent(newColumn)
+	cmds.text(label = str(message))
+	cmds.rowLayout(height = 10)
+	cmds.setParent(newColumn)
+	cmds.text(label = 'Creating file types:')
+	cmds.text(label = str(message2))
+	cmds.rowLayout(height = 15)
+	cmds.showWindow('progress')
+
+def DestroyProgressWindow():
+	if cmds.window('progress', q = True, exists = True):
+		cmds.deleteUI('progress')
+
 def IsThisSceneAlreadyPublished():
-	# TODO: Add logic
-	return False
+	filePath = GetDirectoryOfPublish() + '/' + GetPathOfSavedFile() + '/source/' + GetNameOfSavedFile(False) + '.mb'	# Use known information to concatenate relevant directory
+	isExist = os.path.exists(filePath)
+	return isExist
 
 def IsThereASingleRootObject():
-	# TODO: Add logic
+	meshInScene = cmds.ls(dagObjects = True, long = True, type = 'mesh')
+	nameOfRoot = ''
+	for name in meshInScene:
+		meshPath = name.split('|')
+		if nameOfRoot == '':
+			nameOfRoot = meshPath[1]
+		elif nameOfRoot != meshPath[1]:
+			return False
 	return True
 
 def CreateDirectoryIfNotExist(directory): # Check destination exists, and create a directory for the path specified if doesn't
