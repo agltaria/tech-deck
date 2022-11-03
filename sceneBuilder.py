@@ -7,6 +7,8 @@ from functools import partial
 
 
 global shotSelected #holds current selected shot
+global assetSelected #holds selected asset
+
 publicFolderDirectory = r"C:\Users\lilly\Documents\maya\projects\Assessment2_GroupX\scenes\publish"
 currentProjectDirectory = cmds.workspace(q = True, dir = True)
 
@@ -16,10 +18,10 @@ global lightingShotFolder
 
 def getPublishDirectory():
     publishDirectory = currentProjectDirectory + "scenes/publish"
-    return publishDirectory
+    return publishDirectory + "/sequence"
 
 def returnSequences():
-    return getPublishDirectory() + "/sequence"
+    return getPublishDirectory()
 
 def returnAssets():
     return getPublishDirectory() + "/assets"
@@ -34,7 +36,7 @@ def selectSequenceFolder():
     shotSelect = cmds.textField('shotSelect', edit = True, text = str(os.path.basename(shotSelected[0]))) #updates textfield
     animationShotFolder = shotSelected[0] + '/animation/source/'
     layoutShotFolder = shotSelected[0] + '/layout/source/'
-    lightingShotFolder = shotSelected[0] + '/lighting/source/' 
+    lightingShotFolder = shotSelected[0] + '/light/source/' 
     return shotSelected[0]
 
 def loadShot(folder, *args):
@@ -44,6 +46,7 @@ def loadShot(folder, *args):
     return
 
 def selectAssetFolder():
+    global assetSelected
     assetSelected = cmds.fileDialog2(fileMode = 3, dir = returnAssets())
 
 def loadLayout():
@@ -127,6 +130,30 @@ def loadLighting():
             alembic = i
     cmds.file(path, reference = True)
 
+def loadSingleAsset():
+    files = []
+    latestFile = ""
+    global assetSelected
+    if("/set/" in assetSelected):
+        assetPath = assetSelected + "/model"
+        for file in os.listdir(assetPath):
+            if file.endswith(".mb"):
+                files.append(file)
+                latestFile = file
+        for i in files:
+            if(isLatest(i, latestFile)):
+                latestFile = i
+    elif("/setPiece/" in assetSelected):
+        assetPath = assetSelected + "/model/source/"
+        for file in os.listdir(assetPath):
+            if file.endswith(".mb"):
+                files.append(file)
+                latestFile = file
+        for i in files:
+            if(isLatest(i, latestFile)):
+                latestFile = i
+    
+    cmds.file(assetPath, reference = True)
 
 def loadAsset(newRefPath, currentRefNode):
     cmds.file(newRefPath, loadReference = currentRefNode)
@@ -296,9 +323,11 @@ def sceneBuilder():
     cmds.separator(parent = info, h = 10)
 
     cmds.text(parent = info, label = "Load an asset")
-    cmds.rowColumnLayout(parent = info, numberOfRows = 1)
+    assetSelect = cmds.rowColumnLayout(parent = info, numberOfRows = 1)
     setSelect = cmds.textField('setSelect', width = 200, editable = False)
-    cmds.button(label = 'Select', command = 'selectSequenceFolder()')
+    cmds.button(label = 'Select', command = 'selectAssetFolder()')
+    cmds.separator(w = 10, st = 'none')
+    cmds.button(label = 'Load', command = 'loadSingleAsset()')
     cmds.separator(h = 20)
 
     updateButtons = cmds.rowColumnLayout(parent = info, numberOfRows = 1)
@@ -306,7 +335,6 @@ def sceneBuilder():
     cmds.separator(w = 10, st = 'none')
     cmds.button(label = 'Update asset', command = 'updateSingle()')
     cmds.separator(w = 10, st = 'none')
-    versions = cmds.optionMenu()
     
     cmds.separator(w = 10, st = 'none')
     cmds.button(label = 'Update all', command = 'updateAll()')
